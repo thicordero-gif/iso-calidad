@@ -1,0 +1,2375 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema Integrado SIG ISO 9001 / 14001 / 45001</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        iso9001: '#2563eb', // Blue
+                        iso14001: '#059669', // Green
+                        iso45001: '#d97706', // Amber/Orange
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; color: #1e293b; }
+        .node-hover { transition: all 0.2s ease-in-out; }
+        .node-hover:hover { transform: translateY(-2px); box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: #f1f5f9; }
+        @keyframes spinSlow {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        @keyframes dashFlow {
+            to { stroke-dashoffset: -40; }
+        }
+        .animate-dash-flow {
+            stroke-dasharray: 8 6;
+            animation: dashFlow 2.5s linear infinite;
+        }
+        .animate-spin-slow {
+            animation: spinSlow 60s linear infinite;
+        }
+        .circular-node-card {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .circular-node-card:hover {
+            transform: translate(-50%, -50%) scale(1.04);
+            z-index: 30;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col">
+
+    <!-- Top Bar Header -->
+    <header class="bg-slate-900 text-white border-b border-slate-800 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="bg-gradient-to-r from-blue-600 via-emerald-600 to-amber-600 p-2.5 rounded-xl shadow-md">
+                    <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                    </svg>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold tracking-tight text-white flex items-center gap-2">
+                        SIG ISO Studio <span class="text-xs font-semibold bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-700">v2.6</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Diagramas de Proceso, Diagnóstico y Evaluación de Riesgos (ISO 9001 / 14001 / 45001)</p>
+                </div>
+            </div>
+
+            <!-- ISO Standards Toggles Bar -->
+            <div class="flex flex-wrap items-center gap-2 bg-slate-800/80 p-1.5 rounded-xl border border-slate-700">
+                <span class="text-xs font-semibold text-slate-300 px-2">Normas Evaluadas:</span>
+                
+                <label id="label-iso-9001" class="cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-blue-600 text-white shadow-sm border border-blue-500">
+                    <input type="checkbox" id="chk-iso-9001" checked onchange="toggleIsoStandard('iso9001')" class="rounded text-blue-600 focus:ring-0 w-3.5 h-3.5">
+                    <span class="font-bold">ISO 9001:2015</span> (Calidad)
+                </label>
+
+                <label id="label-iso-14001" class="cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-emerald-600 text-white shadow-sm border border-emerald-500">
+                    <input type="checkbox" id="chk-iso-14001" checked onchange="toggleIsoStandard('iso14001')" class="rounded text-emerald-600 focus:ring-0 w-3.5 h-3.5">
+                    <span class="font-bold">ISO 14001:2015</span> (Medio Ambiente)
+                </label>
+
+                <label id="label-iso-45001" class="cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-amber-600 text-white shadow-sm border border-amber-500">
+                    <input type="checkbox" id="chk-iso-45001" checked onchange="toggleIsoStandard('iso45001')" class="rounded text-amber-600 focus:ring-0 w-3.5 h-3.5">
+                    <span class="font-bold">ISO 45001:2018</span> (SST)
+                </label>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <div class="bg-white border-b border-slate-200 shadow-sm sticky top-[65px] z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto space-x-2 py-2">
+            <button id="tab-btn-process" onclick="switchTab('process')" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all bg-slate-900 text-white shadow-sm">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                1. Mapa y Diagrama de Flujo
+            </button>
+            <button id="tab-btn-checklist" onclick="switchTab('checklist')" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                2. Diagnóstico y Listas de Chequeo
+            </button>
+            <button id="tab-btn-rootcause" onclick="switchTab('rootcause')" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-all">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                3. Análisis Causa Raíz y Plan de Mejora
+            </button>
+            <button id="tab-btn-ai" onclick="switchTab('ai')" class="tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-purple-700 hover:bg-purple-50 border border-purple-200 transition-all ml-auto">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                Asistente IA ISO
+            </button>
+        </div>
+    </div>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-grow w-full">
+
+        <!-- TAB 1: PROCESS MAP & FLOWCHART BUILDER -->
+        <section id="tab-content-process" class="space-y-6">
+            <!-- Header controls -->
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900 flex items-center gap-2">
+                        <span>📌 Mapeo y Flujograma Integrado SIG</span>
+                    </h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Gestione el Mapa de Procesos Macro y renderice el Diagrama de Flujo con simbología gráfica estandarizada.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                    <label class="text-xs font-semibold text-slate-600 hidden sm:inline">Proceso Seleccionado:</label>
+                    <select id="select-process-list" onchange="loadSelectedProcess()" class="bg-slate-50 border border-slate-300 text-slate-800 text-xs font-semibold rounded-lg px-3 py-2 focus:ring-blue-500 focus:border-blue-500">
+                        <!-- Populated dynamically by JS -->
+                    </select>
+                    <button onclick="openProcessModal()" class="bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                        Nuevo Proceso
+                    </button>
+                    <button onclick="openNodeModal()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm transition">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                        + Agregar Paso
+                    </button>
+                </div>
+            </div>
+
+            <!-- View Mode Mode Switcher Toolbar -->
+            <div class="flex border-b border-slate-200 bg-white rounded-xl shadow-sm overflow-hidden p-1.5 gap-2">
+                <button id="view-btn-circular" onclick="switchProcessViewMode('circular')" class="view-mode-btn flex-1 py-2 px-3 text-xs font-bold rounded-lg transition bg-slate-900 text-white shadow-sm flex items-center justify-center gap-2">
+                    <span>🔄 Flujograma Circular (Ciclo PHVA & Mejora)</span>
+                </button>
+                <button id="view-btn-macro" onclick="switchProcessViewMode('macro')" class="view-mode-btn flex-1 py-2 px-3 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2">
+                    <span>🗺️ Mapa Macro de Procesos SIG</span>
+                </button>
+                <button id="view-btn-graphic" onclick="switchProcessViewMode('graphic')" class="view-mode-btn flex-1 py-2 px-3 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2">
+                    <span>🔀 Diagrama Lineal (Simbología ANSI)</span>
+                </button>
+                <button id="view-btn-sipoc" onclick="switchProcessViewMode('sipoc')" class="view-mode-btn flex-1 py-2 px-3 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2">
+                    <span>📄 Matriz SIPOC / Ficha de Detalle</span>
+                </button>
+            </div>
+
+            <!-- Process Summary Meta Info -->
+            <div id="process-meta-card" class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white p-5 rounded-xl shadow-sm border border-slate-700">
+                <!-- Dynamic process info rendered by JS -->
+            </div>
+
+            <!-- VIEW 1: MACRO PROCESS MAP (MAPA DE PROCESOS) -->
+            <div id="container-view-macro" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-6">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                        <span>🗺️ Mapa Global de Procesos del Sistema Integrado (ISO 9001 / 14001 / 45001)</span>
+                    </h3>
+                    <span class="text-xs text-slate-500">Haga clic en cualquier proceso para cargarlo y graficar su flujograma</span>
+                </div>
+
+                <!-- Strategic, Core, Support Swimlanes layout -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 items-stretch">
+                    <!-- Inputs Box -->
+                    <div class="lg:col-span-2 bg-blue-50 border-2 border-dashed border-blue-300 rounded-xl p-4 flex flex-col justify-center text-center space-y-2">
+                        <span class="text-2xl">📥</span>
+                        <h4 class="font-bold text-xs text-blue-900 uppercase">Entradas / Requisitos</h4>
+                        <p class="text-[11px] text-blue-700 leading-tight">Necesidades del Cliente, Expectativas de Partes Interesadas, Requisitos Legales y Ambientales</p>
+                    </div>
+
+                    <!-- Macro Map Core Categories Grid -->
+                    <div class="lg:col-span-8 space-y-4">
+                        <!-- Strategic Processes -->
+                        <div class="bg-amber-50/60 border border-amber-200 rounded-xl p-3.5 space-y-2">
+                            <h4 class="text-[11px] font-bold text-amber-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> Procesos Estratégicos y de Dirección
+                            </h4>
+                            <div id="macro-strategic-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Core/Operational Processes -->
+                        <div class="bg-blue-50/60 border border-blue-200 rounded-xl p-3.5 space-y-2">
+                            <h4 class="text-[11px] font-bold text-blue-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span> Procesos Operativos y Clave (Cadena de Valor)
+                            </h4>
+                            <div id="macro-core-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+
+                        <!-- Support Processes -->
+                        <div class="bg-emerald-50/60 border border-emerald-200 rounded-xl p-3.5 space-y-2">
+                            <h4 class="text-[11px] font-bold text-emerald-900 uppercase tracking-wider flex items-center gap-1.5">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-600"></span> Procesos de Apoyo y Soporte
+                            </h4>
+                            <div id="macro-support-list" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Outputs Box -->
+                    <div class="lg:col-span-2 bg-emerald-50 border-2 border-dashed border-emerald-300 rounded-xl p-4 flex flex-col justify-center text-center space-y-2">
+                        <span class="text-2xl">📤</span>
+                        <h4 class="font-bold text-xs text-emerald-900 uppercase">Salidas / Resultados</h4>
+                        <p class="text-[11px] text-emerald-700 leading-tight">Satisfacción del Cliente, Productos Conformes, Cero Accidentes, Control de Impactos</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 2: GRAPHICAL FLOWCHART DIAGRAM -->
+            <div id="container-view-graphic" class="hidden bg-slate-900 text-white p-6 rounded-xl shadow-xl border border-slate-800 space-y-6 overflow-x-auto">
+                <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 pb-3 border-b border-slate-800">
+                    <div>
+                        <h3 class="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                            <span class="w-3 h-3 rounded-full bg-emerald-400 animate-ping"></span>
+                            Diagrama de Flujo Simbólico y Conectores de Flujo
+                        </h3>
+                        <p class="text-xs text-slate-400">Representación gráfica con bloques normalizados ANSI/ISO.</p>
+                    </div>
+                    <div class="flex items-center gap-3 text-[11px] text-slate-300 bg-slate-800 px-3 py-1.5 rounded-lg border border-slate-700">
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 rounded-full bg-emerald-500"></span> Inicio/Fin</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-blue-600 rounded-sm"></span> Actividad</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-amber-500 rotate-45 rounded-sm"></span> Decisión</span>
+                        <span class="flex items-center gap-1"><span class="w-3 h-3 bg-indigo-500 rounded-sm"></span> Registro</span>
+                    </div>
+                </div>
+
+                <!-- Flowchart Graphical Render Board -->
+                <div id="graphical-flowchart-board" class="min-h-[460px] p-6 flex flex-col items-center justify-start space-y-6 relative">
+                    <!-- Flowchart visual dynamic elements inserted here -->
+                </div>
+            </div>
+
+            <!-- VIEW: CIRCULAR FLOWCHART DIAGRAM (FLUJOGRAMA CIRCULAR) -->
+            <div id="container-view-circular" class="bg-white rounded-xl shadow-sm border border-slate-200 p-6 space-y-6">
+                <!-- Header Controls for Circular Flowchart -->
+                <div class="flex flex-col lg:flex-row justify-between lg:items-center gap-4 pb-4 border-b border-slate-100">
+                    <div>
+                        <div class="flex items-center gap-3">
+                            <div class="p-2.5 rounded-xl bg-gradient-to-br from-indigo-600 via-blue-600 to-teal-500 text-white shadow-md">
+                                <svg class="w-6 h-6 animate-spin-slow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+                                    Flujograma Circular Integrado (Ciclo PHVA & Mejora Continua)
+                                    <span class="text-[11px] font-semibold bg-indigo-50 text-indigo-700 px-2.5 py-0.5 rounded-full border border-indigo-200">ISO 9001 / 14001 / 45001</span>
+                                </h3>
+                                <p class="text-xs text-slate-500">Circuito cerrado interactivo consolidando todas las opciones: Entradas, Salidas, Documentos, Responsables, Cláusulas y Riesgos.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-wrap items-center gap-2">
+                        <!-- Mode Switch: Process Loop vs Global PHVA -->
+                        <div class="bg-slate-100 p-1 rounded-xl flex items-center text-xs border border-slate-200">
+                            <button id="circ-mode-process" onclick="setCircularMode('process')" class="px-3 py-1.5 rounded-lg font-bold transition bg-white text-slate-900 shadow-sm">
+                                🔄 Circuito del Proceso
+                            </button>
+                            <button id="circ-mode-global" onclick="setCircularMode('global')" class="px-3 py-1.5 rounded-lg font-bold transition text-slate-600 hover:text-slate-900">
+                                🌐 Macro-Ciclo PHVA Global
+                            </button>
+                        </div>
+
+                        <!-- Standard Filter -->
+                        <select id="select-circular-filter" onchange="filterCircularNorm(this.value)" class="text-xs font-semibold bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-700 focus:ring-blue-500">
+                            <option value="ALL">🔍 Todas las Normas</option>
+                            <option value="iso9001">ISO 9001 (Calidad)</option>
+                            <option value="iso14001">ISO 14001 (Medio Ambiente)</option>
+                            <option value="iso45001">ISO 45001 (SST)</option>
+                        </select>
+
+                        <button onclick="window.print()" class="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 border border-slate-300 transition">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                            Imprimir / PDF
+                        </button>
+                        <button onclick="openNodeModal()" class="bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm transition">
+                            + Agregar Paso
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Stats Bar: Options Count -->
+                <div id="circular-kpi-bar" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <!-- Rendered dynamically -->
+                </div>
+
+                <!-- Main Visual Circular Display Canvas -->
+                <div class="bg-gradient-to-b from-slate-950 via-slate-900 to-slate-950 rounded-2xl p-4 sm:p-6 border border-slate-800 shadow-2xl relative overflow-x-auto custom-scrollbar">
+                    <div id="circular-flowchart-canvas" class="relative w-full min-w-[760px] min-h-[780px] flex items-center justify-center">
+                        <!-- SVG and orbital nodes dynamically rendered -->
+                    </div>
+                </div>
+
+                <!-- Detailed Table of All Entered Options in the Cycle -->
+                <div class="bg-slate-50 rounded-xl p-5 border border-slate-200 space-y-4">
+                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                        <div>
+                            <h4 class="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-2">
+                                <span class="w-2.5 h-2.5 rounded-full bg-blue-600"></span>
+                                Matriz Detallada de Opciones Ingresadas en el Flujograma
+                            </h4>
+                            <p class="text-[11px] text-slate-500">Consolidación exhaustiva de todas las variables, especificaciones y controles asociados a cada paso del ciclo.</p>
+                        </div>
+                        <span class="text-[11px] font-semibold text-slate-600 bg-white px-2.5 py-1 rounded-lg border border-slate-200">
+                            Registro de Opciones Activas
+                        </span>
+                    </div>
+
+                    <div class="overflow-x-auto custom-scrollbar">
+                        <table class="w-full text-left text-xs bg-white rounded-lg overflow-hidden border border-slate-200">
+                            <thead class="bg-slate-100 text-slate-700 font-bold uppercase text-[10px] tracking-wider border-b border-slate-200">
+                                <tr>
+                                    <th class="p-3 w-12 text-center">#</th>
+                                    <th class="p-3 w-28">Fase PHVA</th>
+                                    <th class="p-3 w-28">Símbolo ANSI</th>
+                                    <th class="p-3 w-48">Actividad / Paso</th>
+                                    <th class="p-3 w-36">Responsable</th>
+                                    <th class="p-3 w-40">Entradas (Inputs)</th>
+                                    <th class="p-3 w-40">Salidas (Outputs)</th>
+                                    <th class="p-3 w-36">Documentos / Registros</th>
+                                    <th class="p-3 w-44">Requisitos ISO</th>
+                                    <th class="p-3 min-w-[180px]">Riesgos y Medidas de Control</th>
+                                    <th class="p-3 w-20 text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="circular-options-table-body" class="divide-y divide-slate-100">
+                                <!-- Populated dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VIEW 3: DETAILED SIPOC / CARDS VIEW -->
+            <div id="container-view-sipoc" class="hidden bg-white p-6 rounded-xl shadow-sm border border-slate-200 space-y-4">
+                <div class="flex justify-between items-center pb-3 border-b border-slate-100">
+                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wider flex items-center gap-2">
+                        <span>📄 Ficha de Proceso y Matriz SIPOC Detallada</span>
+                    </h3>
+                    <div class="flex items-center gap-3 text-xs text-slate-500">
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> ISO 9001</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> ISO 14001</span>
+                        <span class="flex items-center gap-1"><span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> ISO 45001</span>
+                    </div>
+                </div>
+
+                <!-- Flowchart visual list -->
+                <div id="flowchart-nodes-container" class="space-y-4 relative py-2 custom-scrollbar overflow-x-auto">
+                    <!-- Flow nodes populated dynamically -->
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 2: ISO CHECKLISTS & GAP DIAGNOSIS -->
+        <section id="tab-content-checklist" class="space-y-6 hidden">
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">📋 Evaluación y Listas de Chequeo de Normas ISO</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Verificación exhaustiva de requisitos, diagnósticos de empresa, evidencias asociadas y grado de cumplimiento.</p>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="text-right">
+                        <span class="text-xs text-slate-500 block">Cumplimiento Global SIG</span>
+                        <span id="global-compliance-score" class="text-xl font-bold text-blue-600">0%</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Standard specific checklist view tabs -->
+            <div class="flex border-b border-slate-200 bg-white rounded-xl shadow-sm overflow-hidden p-1 gap-1">
+                <button id="btn-iso-tab-9001" onclick="selectChecklistIsoTab('9001')" class="iso-tab-btn flex-1 py-2.5 text-xs font-bold rounded-lg transition text-white bg-blue-600 shadow-sm flex items-center justify-center gap-2">
+                    <span>ISO 9001:2015 (Calidad)</span>
+                    <span id="badge-score-9001" class="bg-white/20 text-white px-2 py-0.5 rounded-full text-[10px]">0%</span>
+                </button>
+                <button id="btn-iso-tab-14001" onclick="selectChecklistIsoTab('14001')" class="iso-tab-btn flex-1 py-2.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2">
+                    <span>ISO 14001:2015 (Medio Ambiente)</span>
+                    <span id="badge-score-14001" class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-[10px]">0%</span>
+                </button>
+                <button id="btn-iso-tab-45001" onclick="selectChecklistIsoTab('45001')" class="iso-tab-btn flex-1 py-2.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2">
+                    <span>ISO 45001:2018 (SST)</span>
+                    <span id="badge-score-45001" class="bg-slate-200 text-slate-700 px-2 py-0.5 rounded-full text-[10px]">0%</span>
+                </button>
+            </div>
+
+            <!-- Active Standard Warning Notice if standard un-ticked -->
+            <div id="checklist-disabled-notice" class="hidden bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl text-xs flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    <span>Esta norma no está marcada actualmente en la barra superior de selección de normas ISO. Marque el casillero correspondiente arriba para incluirla formalmente en el diagnóstico activo.</span>
+                </div>
+            </div>
+
+            <!-- Dynamic Checklist Content Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <h3 id="checklist-title" class="font-bold text-slate-800 text-sm">Lista de Chequeo de Requisitos</h3>
+                    <div class="flex items-center gap-2 text-xs">
+                        <span class="text-slate-500">Filtrar estado:</span>
+                        <select id="filter-checklist-status" onchange="renderChecklistTable()" class="bg-white border border-slate-300 text-xs rounded-lg px-2 py-1">
+                            <option value="ALL">Todos los requisitos</option>
+                            <option value="CUMPLE">Cumple</option>
+                            <option value="PARCIAL">Cumplimiento Parcial</option>
+                            <option value="NO_CUMPLE">No Cumple</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                            <tr>
+                                <th class="p-3.5 w-28">Cláusula ISO</th>
+                                <th class="p-3.5 w-64">Requisito / Criterio de Cumplimiento</th>
+                                <th class="p-3.5 w-32">Estado</th>
+                                <th class="p-3.5">Diagnóstico u Observación de la Empresa</th>
+                                <th class="p-3.5 w-56">Evidencias Respaldatorias (Docs/Registros)</th>
+                                <th class="p-3.5 w-16 text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="checklist-table-body" class="divide-y divide-slate-100">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 3: ROOT CAUSE ANALYSIS & IMPROVEMENT ACTION PLAN -->
+        <section id="tab-content-rootcause" class="space-y-6 hidden">
+            <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">⚠️ Análisis de Causa Raíz y Plan de Mitigación de Riesgos</h2>
+                    <p class="text-xs text-slate-500 mt-0.5">Gestione las brechas identificadas en el diagnóstico. Determine la Causa Raíz (5 Porqués / Causa-Efecto) y establezca Planes de Mejora.</p>
+                </div>
+                <button onclick="autoGenerateImprovementsFromGaps()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-2 rounded-lg flex items-center gap-1.5 shadow-sm transition">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/></svg>
+                    Sincronizar Hallazgos de Diagnóstico
+                </button>
+            </div>
+
+            <!-- Root Cause Analysis Section Table -->
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                    <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 bg-rose-500 rounded-full"></span>
+                        Plan de Acción Correctivo y Preventivo (Basado en Causas)
+                    </h3>
+                    <button onclick="openActionPlanModal()" class="bg-slate-900 text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-slate-800 transition">
+                        + Nueva Acción de Mejora
+                    </button>
+                </div>
+
+                <div class="overflow-x-auto custom-scrollbar">
+                    <table class="w-full text-left text-xs text-slate-600">
+                        <thead class="bg-slate-100 text-slate-700 font-semibold border-b border-slate-200 uppercase tracking-wider text-[11px]">
+                            <tr>
+                                <th class="p-3.5 w-32">Origen / Norma</th>
+                                <th class="p-3.5 w-52">Hallazgo / Riesgo No Mitigado</th>
+                                <th class="p-3.5">Análisis de Causa Raíz (¿Por qué ocurrió?)</th>
+                                <th class="p-3.5">Acción de Mejora / Mitigación</th>
+                                <th class="p-3.5 w-36">Responsable</th>
+                                <th class="p-3.5 w-28">Fecha Límite</th>
+                                <th class="p-3.5 w-28 text-center">Estado</th>
+                                <th class="p-3.5 w-16 text-center">Eliminar</th>
+                            </tr>
+                        </thead>
+                        <tbody id="action-plan-table-body" class="divide-y divide-slate-100">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: GEMINI AI ASSISTANT -->
+        <section id="tab-content-ai" class="space-y-6 hidden">
+            <div class="bg-gradient-to-br from-purple-900 via-slate-900 to-indigo-900 text-white rounded-xl p-6 shadow-md border border-purple-700">
+                <div class="max-w-3xl space-y-3">
+                    <div class="inline-flex items-center gap-2 bg-purple-500/20 text-purple-300 text-xs px-3 py-1 rounded-full font-medium border border-purple-500/30">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                        Inteligencia Artificial Especializada en Sistemas Integrados (ISO 9001, 14001, 45001)
+                    </div>
+                    <h2 class="text-xl font-bold">Asistente de Auditoría & Generador de Recomendaciones</h2>
+                    <p class="text-xs text-purple-200 leading-relaxed">
+                        Analice automáticamente los datos ingresados en sus diagramas de proceso y listas de chequeo. La IA generará un informe de diagnóstico corporativo, identificará causas raíz probables y propondrá un plan de acción preventivo.
+                    </p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Action trigger card -->
+                <div class="bg-white rounded-xl p-5 shadow-sm border border-slate-200 space-y-4">
+                    <h3 class="font-bold text-slate-800 text-sm">Opciones de Análisis Generativo</h3>
+                    
+                    <button onclick="runAiAnalysis('diagnostic')" class="w-full text-left p-3.5 rounded-lg border border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 transition group">
+                        <div class="font-bold text-xs text-slate-800 group-hover:text-purple-700">📊 Diagnóstico Ejecutivo Integrado</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Genera un dictamen global de cumplimiento ISO considerando las 3 normas.</div>
+                    </button>
+
+                    <button onclick="runAiAnalysis('rootcause')" class="w-full text-left p-3.5 rounded-lg border border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 transition group">
+                        <div class="font-bold text-xs text-slate-800 group-hover:text-purple-700">🔬 Análisis Automatizado de Causas Raíz</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Examina los hallazgos de 'No Cumple' y deduce la causa origen utilizando metodología 5 Porqués.</div>
+                    </button>
+
+                    <button onclick="runAiAnalysis('improvements')" class="w-full text-left p-3.5 rounded-lg border border-slate-200 hover:border-purple-500 hover:bg-purple-50/50 transition group">
+                        <div class="font-bold text-xs text-slate-800 group-hover:text-purple-700">🛡️ Plan Sugerido de Mitigación de Riesgos</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Propone medidas concretas de control operativo, ambiental e higiénico.</div>
+                    </button>
+                </div>
+
+                <!-- AI Output Display -->
+                <div class="md:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-slate-200 flex flex-col justify-between min-h-[380px]">
+                    <div>
+                        <div class="flex items-center justify-between pb-3 mb-4 border-b border-slate-100">
+                            <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-purple-600 animate-pulse"></span>
+                                Informe Generado por Inteligencia Artificial
+                            </h3>
+                            <button onclick="copyAiOutput()" class="text-xs text-slate-500 hover:text-purple-700 font-medium flex items-center gap-1">
+                                📋 Copiar Texto
+                            </button>
+                        </div>
+                        <div id="ai-loading" class="hidden py-12 text-center text-slate-500 space-y-3">
+                            <div class="inline-block animate-spin rounded-full h-8 w-8 border-4 border-purple-600 border-t-transparent"></div>
+                            <p class="text-xs font-semibold">Analizando datos del proceso e informes de la norma ISO...</p>
+                        </div>
+                        <div id="ai-output-text" class="text-xs text-slate-700 space-y-3 leading-relaxed font-mono whitespace-pre-wrap bg-slate-50 p-4 rounded-lg border border-slate-200 max-h-[400px] overflow-y-auto custom-scrollbar">
+Elija una de las opciones de la izquierda para realizar el análisis automático con Gemini AI sobre la información del proceso actual y las listas de chequeo completadas.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- MODAL: ADD / EDIT PROCESS -->
+    <div id="modal-process" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-2">Crear / Editar Proceso</h3>
+            <div class="space-y-3 text-xs">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Nombre del Proceso</label>
+                    <input type="text" id="proc-name" placeholder="Ej: Operaciones y Cadena de Servicio" class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Categoría en Mapa de Procesos</label>
+                    <select id="proc-category" class="w-full border border-slate-300 rounded-lg p-2.5 font-medium text-slate-800">
+                        <option value="strategic">Estratégico / Dirección</option>
+                        <option value="core" selected>Operativo / Clave (Cadena de Valor)</option>
+                        <option value="support">Soporte / Apoyo</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Dueño / Responsable del Proceso</label>
+                    <input type="text" id="proc-owner" placeholder="Ej: Gerente de Operaciones / Jefe SIG" class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Objetivo del Proceso</label>
+                    <textarea id="proc-objective" rows="2" placeholder="Describa el propósito y alcance..." class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+            </div>
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button onclick="closeProcessModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                <button onclick="saveProcess()" class="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm">Guardar Proceso</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD / EDIT FLOW NODE -->
+    <div id="modal-node" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-xl w-full p-6 shadow-xl border border-slate-200 space-y-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-2">
+                <h3 class="text-base font-bold text-slate-900">Agregar Paso al Flujograma</h3>
+                <button onclick="closeNodeModal()" class="text-slate-400 hover:text-slate-600 text-lg">✕</button>
+            </div>
+            
+            <div class="space-y-3 text-xs">
+                <div class="grid grid-cols-1 md:grid-cols-12 gap-3">
+                    <div class="md:col-span-6">
+                        <label class="block font-semibold text-slate-700 mb-1">Título de la Actividad / Paso</label>
+                        <input type="text" id="node-title" placeholder="Ej: Recepción e Inspección de Materias Primas" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-blue-500">
+                    </div>
+                    <div class="md:col-span-3">
+                        <label class="block font-semibold text-slate-700 mb-1">Símbolo ANSI</label>
+                        <select id="node-type" class="w-full border border-slate-300 rounded-lg p-2 font-medium">
+                            <option value="start">🟢 Inicio</option>
+                            <option value="process" selected>🟦 Actividad</option>
+                            <option value="decision">🔶 Control / Decisión</option>
+                            <option value="document">📄 Registro / Doc</option>
+                            <option value="end">🔴 Fin / Cierre</option>
+                        </select>
+                    </div>
+                    <div class="md:col-span-3">
+                        <label class="block font-semibold text-slate-700 mb-1">Fase Ciclo PHVA</label>
+                        <select id="node-phva" class="w-full border border-slate-300 rounded-lg p-2 font-medium">
+                            <option value="plan">🔵 Planificar (P)</option>
+                            <option value="do" selected>🟢 Hacer (H)</option>
+                            <option value="check">🟡 Verificar (V)</option>
+                            <option value="act">🔴 Actuar (A)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Responsable del Paso</label>
+                        <input type="text" id="node-responsible" placeholder="Ej: Inspector de Calidad / Operario" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Documentos / Procedimientos / Registros</label>
+                        <input type="text" id="node-documents" placeholder="Ej: PR-CAL-04, Checklist REC-01" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Entradas (Inputs)</label>
+                        <input type="text" id="node-inputs" placeholder="Ej: Orden de compra, Ficha Técnica" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Salidas (Outputs)</label>
+                        <input type="text" id="node-outputs" placeholder="Ej: Informe de Recepción Conforme" class="w-full border border-slate-300 rounded-lg p-2 focus:ring-blue-500">
+                    </div>
+                </div>
+
+                <!-- Clauses selection per norm -->
+                <div class="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-2">
+                    <span class="font-bold text-slate-800 block text-[11px]">Requisitos ISO Asociados a esta actividad:</span>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                        <div>
+                            <span class="text-[10px] font-bold text-blue-700 block">ISO 9001 (Calidad)</span>
+                            <input type="text" id="node-iso9001" placeholder="Ej: 8.4, 8.6, 9.1" class="w-full border border-slate-300 rounded p-1.5 text-[11px]">
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-emerald-700 block">ISO 14001 (Ambiente)</span>
+                            <input type="text" id="node-iso14001" placeholder="Ej: 6.1.2, 8.1" class="w-full border border-slate-300 rounded p-1.5 text-[11px]">
+                        </div>
+                        <div>
+                            <span class="text-[10px] font-bold text-amber-700 block">ISO 45001 (SST)</span>
+                            <input type="text" id="node-iso45001" placeholder="Ej: 6.1.2, 8.1.2" class="w-full border border-slate-300 rounded p-1.5 text-[11px]">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Riesgos u Controles Principales</label>
+                    <textarea id="node-risks" rows="2" placeholder="Ej: Riesgo de contaminación / Derrame / Caídas. Control: Uso de EPP y Bandejas de contención." class="w-full border border-slate-300 rounded-lg p-2 focus:ring-blue-500"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button onclick="closeNodeModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                <button onclick="saveFlowNode()" class="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-sm">Guardar Paso</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT CHECKLIST ITEM -->
+    <div id="modal-checklist-item" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <h3 id="modal-checklist-title" class="text-base font-bold text-slate-900 border-b border-slate-100 pb-2">Diagnóstico de Requisito ISO</h3>
+            <input type="hidden" id="edit-item-standard">
+            <input type="hidden" id="edit-item-clause">
+
+            <div class="space-y-3 text-xs">
+                <div>
+                    <span class="text-slate-500 block">Requisito Evaluado:</span>
+                    <p id="edit-item-req-text" class="font-semibold text-slate-800 bg-slate-50 p-2.5 rounded-lg border border-slate-200 mt-1"></p>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Estado de Cumplimiento</label>
+                    <select id="edit-item-status" class="w-full border border-slate-300 rounded-lg p-2.5 font-semibold text-slate-800">
+                        <option value="CUMPLE" class="text-emerald-700 font-bold">🟢 CUMPLE CONFORME</option>
+                        <option value="PARCIAL" class="text-amber-700 font-bold">🟡 CUMPLIMIENTO PARCIAL / OPORTUNIDAD DE MEJORA</option>
+                        <option value="NO_CUMPLE" class="text-rose-700 font-bold">🔴 NO CUMPLE (NO CONFORMIDAD)</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Diagnóstico u Observaciones de la Empresa</label>
+                    <textarea id="edit-item-observations" rows="3" placeholder="Describa cómo la empresa implementa o incumple este punto específico..." class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-blue-500"></textarea>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Evidencias Respaldatorias (Documentos, Registros, Auditorías)</label>
+                    <textarea id="edit-item-evidence" rows="2" placeholder="Ej: Manual M-SIG-01 Rev 3, Matriz de Riesgos R-SST-02, Fotos de inspección." class="w-full border border-slate-300 rounded-lg p-2.5 focus:ring-blue-500"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button onclick="closeChecklistModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                <button onclick="saveChecklistEvaluation()" class="px-4 py-2 text-xs font-semibold text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-sm">Guardar Diagnóstico</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD ACTION PLAN ITEM -->
+    <div id="modal-action-plan" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <h3 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-2">Crear Acción de Mejora / Mitigación</h3>
+            
+            <div class="space-y-3 text-xs">
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Norma Asociada</label>
+                        <select id="action-norm" class="w-full border border-slate-300 rounded-lg p-2">
+                            <option value="ISO 9001">ISO 9001 (Calidad)</option>
+                            <option value="ISO 14001">ISO 14001 (Medio Ambiente)</option>
+                            <option value="ISO 45001">ISO 45001 (SST)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Estado Acción</label>
+                        <select id="action-status" class="w-full border border-slate-300 rounded-lg p-2">
+                            <option value="Pendiente">Pendiente</option>
+                            <option value="En Proceso">En Proceso</option>
+                            <option value="Completado">Completado</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Hallazgo / Riesgo Identificado</label>
+                    <input type="text" id="action-gap" placeholder="Ej: Falta de procedimiento escrito para el manejo de residuos peligrosos" class="w-full border border-slate-300 rounded-lg p-2">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Análisis Causa Raíz (¿Por qué ocurre?)</label>
+                    <textarea id="action-cause" rows="2" placeholder="Ej: Ausencia de capacitación en la norma ISO 14001 y falta de asignación formal de roles." class="w-full border border-slate-300 rounded-lg p-2"></textarea>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">Acción Correctiva / Preventiva (Mitigación)</label>
+                    <textarea id="action-mitigation" rows="2" placeholder="Ej: Elaborar instructivo IT-AMB-02, instalar contenedor rotulado y capacitar al personal." class="w-full border border-slate-300 rounded-lg p-2"></textarea>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Responsable</label>
+                        <input type="text" id="action-owner" placeholder="Ej: Coord. Ambiental" class="w-full border border-slate-300 rounded-lg p-2">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">Fecha Límite</label>
+                        <input type="date" id="action-date" class="w-full border border-slate-300 rounded-lg p-2">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-2 pt-2 border-t border-slate-100">
+                <button onclick="closeActionPlanModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">Cancelar</button>
+                <button onclick="saveActionPlanItem()" class="px-4 py-2 text-xs font-semibold text-white bg-slate-900 hover:bg-slate-800 rounded-lg shadow-sm">Guardar Acción</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // State variables
+        let selectedIsoNorms = {
+            iso9001: true,
+            iso14001: true,
+            iso45001: true
+        };
+
+        let activeChecklistTab = '9001'; // 9001, 14001, 45001
+        let activeProcessViewMode = 'circular'; // 'circular', 'macro', 'graphic', 'sipoc'
+        let circularSubMode = 'process'; // 'process' or 'global'
+        let circularFilterNorm = 'ALL'; // 'ALL', 'iso9001', 'iso14001', 'iso45001'
+        let editingNodeIndex = -1;
+
+        // Tab Navigation
+        function switchTab(tabId) {
+            const tabs = ['process', 'checklist', 'rootcause', 'ai'];
+            tabs.forEach(t => {
+                const content = document.getElementById(`tab-content-${t}`);
+                const btn = document.getElementById(`tab-btn-${t}`);
+                if (content) {
+                    if (t === tabId) content.classList.remove('hidden');
+                    else content.classList.add('hidden');
+                }
+                if (btn) {
+                    if (t === tabId) {
+                        btn.className = t === 'ai' 
+                            ? "tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-white bg-purple-700 shadow-sm ml-auto"
+                            : "tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all bg-slate-900 text-white shadow-sm";
+                    } else {
+                        btn.className = t === 'ai'
+                            ? "tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-purple-700 hover:bg-purple-50 border border-purple-200 transition-all ml-auto"
+                            : "tab-btn flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-100 transition-all";
+                    }
+                }
+            });
+
+            if (tabId === 'checklist') {
+                renderChecklistTable();
+                updateScores();
+            } else if (tabId === 'rootcause') {
+                renderActionPlanTable();
+            }
+        }
+
+        // Standard Toggles
+        function toggleIsoStandard(normKey) {
+            const num = normKey.replace('iso', '');
+            const chk = document.getElementById(`chk-iso-${num}`);
+            if (chk) {
+                selectedIsoNorms[normKey] = chk.checked;
+                const lbl = document.getElementById(`label-iso-${num}`);
+                if (lbl) {
+                    if (chk.checked) {
+                        if (normKey === 'iso9001') lbl.className = "cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-blue-600 text-white shadow-sm border border-blue-500";
+                        if (normKey === 'iso14001') lbl.className = "cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-emerald-600 text-white shadow-sm border border-emerald-500";
+                        if (normKey === 'iso45001') lbl.className = "cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-amber-600 text-white shadow-sm border border-amber-500";
+                    } else {
+                        lbl.className = "cursor-pointer flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-medium transition-all bg-slate-800 text-slate-400 border border-slate-700 opacity-60";
+                    }
+                }
+            }
+            updateScores();
+            if (activeProcessViewMode === 'circular') renderCircularFlowchart();
+            else if (activeProcessViewMode === 'graphic') renderGraphicalFlowchart();
+            else if (activeProcessViewMode === 'sipoc') renderFlowchart();
+            if (activeChecklistTab) renderChecklistTable();
+        }
+
+        // Default processes with Categories and Flowchart Shapes
+        let processes = [
+            {
+                id: 'proc_1',
+                category: 'core',
+                name: 'Gestión de Compras y Evaluación de Proveedores',
+                owner: 'Jefe de Adquisiciones / Encargado SIG',
+                objective: 'Garantizar el suministro de insumos, materias primas y servicios contratados cumpliendo criterios de calidad, impacto ambiental y SST.',
+                nodes: [
+                    {
+                        type: 'start',
+                        title: 'Detección de Necesidad y Solicitud de Compra',
+                        responsible: 'Jefe de Área Solicitante',
+                        documents: 'Formulario SOL-01, Requerimiento Interno',
+                        inputs: 'Plan de producción / Especificaciones técnicas',
+                        outputs: 'Solicitud de Compra Aprobada',
+                        iso9001: '8.4.1 Control de procesos externos',
+                        iso14001: '8.1 Planificación operativa ambiental',
+                        iso45001: '8.1.4 Contratación externa y compras',
+                        risks: 'Riesgo: Adquisición de insumos fuera de especificación o químicos sin Hojas de Datos de Seguridad (HDS).'
+                    },
+                    {
+                        type: 'decision',
+                        title: '¿Proveedor / Contratista Homologado en SIG?',
+                        responsible: 'Encargado de Compras / Comité SIG',
+                        documents: 'Procedimiento PR-COM-02, Matriz REG-PROV-05',
+                        inputs: 'Catálogo de Proveedores, Fichas HDS, Seguros SST',
+                        outputs: 'Dictamen de Homologación (Aprobado / Rechazado)',
+                        iso9001: '8.4.2 Criterios de evaluación y reevaluación',
+                        iso14001: '8.1 Criterios de sostenibilidad y gestión de residuos',
+                        iso45001: '8.1.4.2 Coordinación con contratistas',
+                        risks: 'Riesgo de accidentes o sanciones por contratistas sin EPP o sin inducción de seguridad.'
+                    },
+                    {
+                        type: 'process',
+                        title: 'Recepción, Inspección y Control de Entradas',
+                        responsible: 'Bodeguero / Inspector de Calidad',
+                        documents: 'Checklist Recepción CHK-REC-01, Guía Despacho',
+                        inputs: 'Materiales ingresados, Orden de Compra',
+                        outputs: 'Insumos Liberados / Acta de Recepción Conforme',
+                        iso9001: '8.6 Liberación de productos y servicios',
+                        iso14001: '8.2 Plan de contingencia de derrames en descarga',
+                        iso45001: '8.1.2 Eliminación de peligros en la descarga',
+                        risks: 'Riesgo de derrames de sustancias químicas o sobreesfuerzo físico de operarios durante la estiba.'
+                    },
+                    {
+                        type: 'end',
+                        title: 'Ingreso a Inventario y Liberación Operativa',
+                        responsible: 'Jefe de Logística',
+                        documents: 'Kardex SIG / Acta Cierre',
+                        inputs: 'Conformidad de inspección',
+                        outputs: 'Insumo disponible en stock',
+                        iso9001: '8.5.4 Preservación de salidas',
+                        iso14001: '8.1 Almacenamiento seguro',
+                        iso45001: '8.1 Controles de estiba',
+                        risks: 'Deterioro de insumos por almacenamiento inadecuado.'
+                    }
+                ]
+            },
+            {
+                id: 'proc_2',
+                category: 'core',
+                name: 'Operaciones y Cadena de Servicio',
+                owner: 'Gerente de Operaciones / Jefe de Planta',
+                objective: 'Planificar y ejecutar la prestación del servicio u operaciones garantizando estándares de calidad, seguridad ocupacional y minimización del impacto ambiental.',
+                nodes: [
+                    {
+                        type: 'start',
+                        title: 'Planificación y Programación de la Operación',
+                        responsible: 'Jefe de Planificación y Control',
+                        documents: 'Plan Operativo PL-OPE-01, Orden de Trabajo OT',
+                        inputs: 'Requerimientos del cliente, Capacidad instalada, IPERC',
+                        outputs: 'Programa de Producción / Calendario Operativo',
+                        iso9001: '8.1 Planificación y control operacional',
+                        iso14001: '8.1 Planificación de aspectos e impactos',
+                        iso45001: '8.1.1 Planificación y control operativo SST',
+                        risks: 'Riesgo de cuellos de botella u omisión de controles preventivos de seguridad por sobrecarga operativa.'
+                    },
+                    {
+                        type: 'process',
+                        title: 'Ejecución del Servicio y Controles Operativos',
+                        responsible: 'Supervisores de Planta / Operarios',
+                        documents: 'Procedimiento PR-OPE-03, Permisos de Trabajo Seguro PTS',
+                        inputs: 'Insumos homologados, Orden de Trabajo, EPP',
+                        outputs: 'Servicio en Ejecución / Producto Procesado',
+                        iso9001: '8.5.1 Control de la producción y del servicio',
+                        iso14001: '6.1.2 Gestión de residuos, emisiones y vertidos',
+                        iso45001: '8.1.2 Aplicación de jerarquía de controles de SST',
+                        risks: 'Riesgos de atropello, atrapamiento, ruido sobre límites permitidos o generación de residuos peligrosos.'
+                    },
+                    {
+                        type: 'decision',
+                        title: '¿Inspección de Calidad Conforme?',
+                        responsible: 'Jefe de Aseguramiento de Calidad / Lider SIG',
+                        documents: 'Informe de Liberación LIB-02, Protocolo de Inspección',
+                        inputs: 'Servicio finalizado, Criterios de Aceptación',
+                        outputs: 'Servicio Conforme / Liberado',
+                        iso9001: '8.6 Liberación / 8.7 Salidas No Conformes',
+                        iso14001: '9.1.1 Monitoreo ambiental',
+                        iso45001: '9.1.1 Monitoreo SST',
+                        risks: 'Riesgo de entrega de productos fuera de especificación.'
+                    },
+                    {
+                        type: 'end',
+                        title: 'Entrega Final y Acta de Conformidad',
+                        responsible: 'Supervisión de Operaciones',
+                        documents: 'Acta Recepción Cliente',
+                        inputs: 'Producto inspeccionado',
+                        outputs: 'Entrega conforme al cliente',
+                        iso9001: '8.5.5 Actividades posteriores a la entrega',
+                        iso14001: '8.1 Gestión post-entrega',
+                        iso45001: '8.1 Cierre de tareas',
+                        risks: 'Reclamos por demoras en la entrega.'
+                    }
+                ]
+            },
+            {
+                id: 'proc_3',
+                category: 'core',
+                name: 'Atención Comercial y Cotización',
+                owner: 'Jefe Comercial / Ejecutivo de Ventas',
+                objective: 'Captar y evaluar las necesidades de los clientes, analizando la factibilidad técnica, ambiental y de SST para emitir ofertas comerciales precisas.',
+                nodes: [
+                    {
+                        type: 'start',
+                        title: 'Recepción y Solicitud de Cotización (TDR)',
+                        responsible: 'Ejecutivo Comercial',
+                        documents: 'Registro de Prospecto REG-COM-01, Ficha TDR',
+                        inputs: 'Solicitud del Cliente, Requerimientos Técnicos',
+                        outputs: 'Requerimiento registrado y catalogado',
+                        iso9001: '8.2.1 Comunicación con los clientes',
+                        iso14001: '4.2 Expectativas de partes interesadas',
+                        iso45001: '4.2 Necesidades contractuales de clientes en SST',
+                        risks: 'Riesgo de aceptar requerimientos ambiguos o con exigencias normativas especiales no identificadas.'
+                    },
+                    {
+                        type: 'decision',
+                        title: '¿Es Viable Técnica, Ambiental y de SST?',
+                        responsible: 'Jefe Técnico / Prevencionista SST / Coord. Ambiental',
+                        documents: 'Matriz de Factibilidad FAC-02, Estimación de Costos',
+                        inputs: 'Especificaciones del cliente, Matriz IPERC previa',
+                        outputs: 'Informe de Viabilidad Operativa Aprobado',
+                        iso9001: '8.2.2 y 8.2.3 Revisión de requisitos',
+                        iso14001: '6.1.3 Evaluación de requisitos legales',
+                        iso45001: '6.1.3 Análisis de normas de SST',
+                        risks: 'Cotizar proyectos que excedan la capacidad técnica o impliquen alto riesgo no controlable.'
+                    },
+                    {
+                        type: 'end',
+                        title: 'Elaboración y Cierre de Contrato',
+                        responsible: 'Jefe Comercial / Gerencia General',
+                        documents: 'Propuesta Comercial PROP-2026, Contrato de Servicio',
+                        inputs: 'Estructura de Costos, Tiempos de Entrega',
+                        outputs: 'Cotización Aprobada / Contrato Firmado',
+                        iso9001: '8.2.4 Cambios en los requisitos',
+                        iso14001: '8.1 Compromisos ambientales contractuales',
+                        iso45001: '8.1.4 Cláusulas de SST en contratos',
+                        risks: 'Discrepancias en expectativas del contrato.'
+                    }
+                ]
+            },
+            {
+                id: 'proc_4',
+                category: 'strategic',
+                name: 'Dirección Estratégica & Liderazgo SIG',
+                owner: 'Alta Dirección / Gerencia General',
+                objective: 'Establecer la política SIG, objetivos corporativos, asignación de recursos y revisión por la dirección.',
+                nodes: [
+                    {
+                        type: 'start',
+                        title: 'Análisis de Contexto y Partes Interesadas',
+                        responsible: 'Gerencia General / Comité SIG',
+                        documents: 'Matriz FODA SIG-01',
+                        inputs: 'Entorno externo e interno',
+                        outputs: 'Estrategia y Política SIG',
+                        iso9001: '4.1 / 4.2 / 5.2',
+                        iso14001: '4.1 / 4.2 / 5.2',
+                        iso45001: '4.1 / 4.2 / 5.2',
+                        risks: 'Falta de alineación estratégica.'
+                    },
+                    {
+                        type: 'end',
+                        title: 'Revisión por la Dirección y Mejora',
+                        responsible: 'Alta Dirección',
+                        documents: 'Informe de Revisión por la Dirección',
+                        inputs: 'Resultados de auditorías e indicadores',
+                        outputs: 'Planes de mejora aprobados',
+                        iso9001: '9.3 / 10.3',
+                        iso14001: '9.3 / 10.3',
+                        iso45001: '9.3 / 10.3',
+                        risks: 'Decisiones sin sustento en datos.'
+                    }
+                ]
+            },
+            {
+                id: 'proc_5',
+                category: 'support',
+                name: 'Gestión Humana, Capacitación y SST',
+                owner: 'Jefe de Gestión Humana / Prevencionista',
+                objective: 'Garantizar personal competente, capacitado y consciente de la calidad, ambiente y SST.',
+                nodes: [
+                    {
+                        type: 'start',
+                        title: 'Detección de Necesidades de Capacitación',
+                        responsible: 'Jefe de Gestión Humana',
+                        documents: 'Plan Anual de Capacitación PAC-2026',
+                        inputs: 'Evaluaciones de desempeño e IPERC',
+                        outputs: 'Programa de Cursos Aprobado',
+                        iso9001: '7.2 Competencia',
+                        iso14001: '7.2 / 7.3 Toma de conciencia',
+                        iso45001: '7.2 / 7.3 Consulta y formación',
+                        risks: 'Baja cobertura de capacitación.'
+                    },
+                    {
+                        type: 'end',
+                        title: 'Evaluación de Eficacia de la Formación',
+                        responsible: 'Coordinador de Capacitación',
+                        documents: 'Registros R-CAP-03',
+                        inputs: 'Cursos ejecutados',
+                        outputs: 'Personal certificado en competencias SIG',
+                        iso9001: '7.2 Evaluación',
+                        iso14001: '7.2 Verificación',
+                        iso45001: '7.2 Calificación',
+                        risks: 'Incumplimiento de requisitos legales de formación.'
+                    }
+                ]
+            }
+        ];
+
+        let currentProcessId = 'proc_1';
+
+        // ISO Checklists Dataset for Gap Diagnosis
+        const isoChecklists = {
+            '9001': [
+                { clause: '4.1', req: 'Comprensión de la organización y de su contexto', status: 'CUMPLE', obs: 'Matriz FODA y análisis PESTEL integrados y actualizados en 2026.', evidence: 'Matriz FODA SIG-2026, Acta de Revisión Gerencial' },
+                { clause: '5.2', req: 'Política de la Calidad establecida y comunicada', status: 'CUMPLE', obs: 'Política integrada vigente firmada por Gerencia y difundida en paneles.', evidence: 'Manual SIG-POL-01, Registros de Inducción' },
+                { clause: '6.1', req: 'Acciones para abordar riesgos y oportunidades', status: 'PARCIAL', obs: 'Se cuenta con matriz de riesgos de proceso pero falta valorar oportunidades comerciales.', evidence: 'Matriz de Riesgos Corporativos R-CAL-02' },
+                { clause: '7.2', req: 'Competencia y capacitación del personal', status: 'CUMPLE', obs: 'Descripciones de cargo y plan anual de formación 2026 al día.', evidence: 'Fichas de Puesto RH-04, Registros de Asistencia' },
+                { clause: '8.1', req: 'Planificación y control operacional de la calidad', status: 'CUMPLE', obs: 'Fichas y procedimientos de trabajo estandarizados aplicados en planta.', evidence: 'Fichas de Procesos PR-OPE-01 a 05' },
+                { clause: '8.4', req: 'Control de procesos y proveedores suministrados externamente', status: 'PARCIAL', obs: 'Evaluación inicial formal realizada pero falta reevaluación semestral de contratistas críticos.', evidence: 'Catálogo de Proveedores Homologados COM-03' },
+                { clause: '8.6', req: 'Liberación de los productos y servicios', status: 'CUMPLE', obs: 'Inspección final de control y firmas de conformidad antes de despacho.', evidence: 'Protocolos de Inspección LIB-01' },
+                { clause: '9.2', req: 'Auditoría interna de calidad', status: 'PARCIAL', obs: 'Programa anual aprobado; última auditoría ejecutada con 2 no conformidades menores en seguimiento.', evidence: 'Informe de Auditoría Interna AUD-2025-02' },
+                { clause: '10.2', req: 'No conformidad y acción correctiva', status: 'PARCIAL', obs: 'Registro de desviaciones habilitado; se registran demoras en el cierre eficaz de acciones.', evidence: 'Bitácora de Acciones Correctivas AC-2026' }
+            ],
+            '14001': [
+                { clause: '4.1', req: 'Contexto ambiental de la organización', status: 'CUMPLE', obs: 'Evaluación de condiciones ambientales externas e internas documentada.', evidence: 'Estudio de Impacto y Entorno AMB-01' },
+                { clause: '6.1.2', req: 'Aspectos ambientales significativos', status: 'CUMPLE', obs: 'Matriz de aspectos ambientales (emisiones, residuos, vertidos) actualizada.', evidence: 'Matriz IAE-2026 Rev 2' },
+                { clause: '6.1.3', req: 'Requisitos legales y otros requisitos ambientales', status: 'PARCIAL', obs: 'Matriz legal elaborada; requiere actualización con normativa de residuos peligrosos.', evidence: 'Matriz de Cumplimiento Legal LEG-AMB-02' },
+                { clause: '8.1', req: 'Control operacional ambiental', status: 'CUMPLE', obs: 'Puntos limpios rotulados y convenios vigentes con empresas de reciclaje autorizadas.', evidence: 'Certificados de Disposición Final RES-05' },
+                { clause: '8.2', req: 'Preparación y respuesta ante emergencias ambientales', status: 'NO_CUMPLE', obs: 'No se han ejecutado simulacros de derrames químicos en los últimos 12 meses.', evidence: 'Pendiente registro de simulacro de derrame' },
+                { clause: '9.1.1', req: 'Seguimiento, medición y evaluación ambiental', status: 'PARCIAL', obs: 'Monitoreo de consumos energéticos y agua al día; falta medición de huella de carbono.', evidence: 'Reportes de Consumo Eléctrico y Agua' },
+                { clause: '10.2', req: 'No conformidades e incidentes ambientales', status: 'CUMPLE', obs: 'Procedimiento formal de reporte e investigación ante incidentes ambientales activo.', evidence: 'Formularios INC-AMB-01' }
+            ],
+            '45001': [
+                { clause: '4.2', req: 'Necesidades y expectativas de los trabajadores en SST', status: 'CUMPLE', obs: 'Comité Paritario de Higiene y Seguridad constituido y con reuniones al día.', evidence: 'Actas mensuales CPHS 2026' },
+                { clause: '5.4', req: 'Consulta y participación de los trabajadores', status: 'CUMPLE', obs: 'Reuniones mensuales de seguridad y buzón de sugerencias preventivas.', evidence: 'Registros de Consulta SST-CP-03' },
+                { clause: '6.1.2', req: 'Identificación de peligros y evaluación de riesgos (IPERC)', status: 'CUMPLE', obs: 'Matriz IPERC por puesto de trabajo validada por prevencionista y comité.', evidence: 'Matriz IPERC-2026 por área' },
+                { clause: '7.2', req: 'Competencia y capacitación en SST', status: 'PARCIAL', obs: 'Inducción inicial completa; faltan cursos específicos de trabajos en altura.', evidence: 'Registros de Charla ODI, pendientes cursos altura' },
+                { clause: '8.1.2', req: 'Jerarquía de los controles de SST', status: 'CUMPLE', obs: 'Priorización de eliminación, controles de ingeniería y dotación de EPP certificados.', evidence: 'Hojas de Entrega de EPP y Protocolos Técnicos' },
+                { clause: '8.2', req: 'Preparación y respuesta ante emergencias de seguridad', status: 'PARCIAL', obs: 'Brigada de emergencia conformada pero falta capacitación en primeros auxilios avanzados.', evidence: 'Plan de Evacuación PLE-02' },
+                { clause: '9.1.2', req: 'Evaluación del cumplimiento legal en SST', status: 'CUMPLE', obs: 'Auditoría legal de seguridad con tasa de accidentalidad bajo la media del sector.', evidence: 'Certificado de Mutualidad / Estadísticas de Siniestralidad' },
+                { clause: '10.2', req: 'Incidentes, no conformidades y acciones correctivas', status: 'PARCIAL', obs: 'Investigación de cuasi-accidentes implementada; falta seguimiento a medidas preventivas.', evidence: 'Informes de Investigación de Incidentes INV-SST' }
+            ]
+        };
+
+        // Root Cause Action Plan
+        let actionPlanList = [
+            {
+                id: 'act_1',
+                norm: 'ISO 14001',
+                gap: 'Desviación en 8.2: Falta de simulacros de derrames químicos.',
+                cause: 'Falta de planificación de calendario de emergencias y asignación de presupuesto.',
+                mitigation: 'Programar simulacro semestral de derrame y adquirir kit anti-derrames homologado.',
+                owner: 'Coordinador Ambiental / Jefe de Planta',
+                date: '2026-11-15',
+                status: 'En Proceso'
+            },
+            {
+                id: 'act_2',
+                norm: 'ISO 9001',
+                gap: 'Desviación en 8.4: Reevaluación semestral de contratistas incompleta.',
+                cause: 'Ausencia de recordatorio automatizado y sobrecarga administrativa en compras.',
+                mitigation: 'Implementar checklist digital de evaluación continua de contratistas.',
+                owner: 'Jefe de Adquisiciones',
+                date: '2026-10-30',
+                status: 'Pendiente'
+            },
+            {
+                id: 'act_3',
+                norm: 'ISO 45001',
+                gap: 'Desviación en 7.2: Capacitación pendiente en trabajos en altura.',
+                cause: 'Retraso de la entidad certificadora contratada para impartir la capacitación.',
+                mitigation: 'Gestionar fecha prioritaria con entidad capacitadora para 12 operarios.',
+                owner: 'Prevencionista de Riesgos SST',
+                date: '2026-11-05',
+                status: 'En Proceso'
+            }
+        ];
+
+        function switchProcessViewMode(mode) {
+            activeProcessViewMode = mode;
+
+            const cCirc = document.getElementById('container-view-circular');
+            const cMacro = document.getElementById('container-view-macro');
+            const cGraph = document.getElementById('container-view-graphic');
+            const cSipoc = document.getElementById('container-view-sipoc');
+
+            if (cCirc) cCirc.classList.add('hidden');
+            if (cMacro) cMacro.classList.add('hidden');
+            if (cGraph) cGraph.classList.add('hidden');
+            if (cSipoc) cSipoc.classList.add('hidden');
+
+            document.querySelectorAll('.view-mode-btn').forEach(btn => {
+                btn.className = "view-mode-btn flex-1 py-2 px-3 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2";
+            });
+
+            const activeBtn = document.getElementById(`view-btn-${mode}`);
+            if (activeBtn) {
+                activeBtn.className = "view-mode-btn flex-1 py-2 px-3 text-xs font-bold rounded-lg transition bg-slate-900 text-white shadow-sm flex items-center justify-center gap-2";
+            }
+
+            if (mode === 'circular') {
+                if (cCirc) cCirc.classList.remove('hidden');
+                renderCircularFlowchart();
+            } else if (mode === 'macro') {
+                if (cMacro) cMacro.classList.remove('hidden');
+                renderMacroProcessMap();
+            } else if (mode === 'graphic') {
+                if (cGraph) cGraph.classList.remove('hidden');
+                renderGraphicalFlowchart();
+            } else {
+                if (cSipoc) cSipoc.classList.remove('hidden');
+                renderFlowchart();
+            }
+        }
+
+        function setCircularMode(mode) {
+            circularSubMode = mode;
+            const btnProc = document.getElementById('circ-mode-process');
+            const btnGlob = document.getElementById('circ-mode-global');
+            if (btnProc && btnGlob) {
+                if (mode === 'process') {
+                    btnProc.className = "px-3 py-1.5 rounded-lg font-bold transition bg-white text-slate-900 shadow-sm";
+                    btnGlob.className = "px-3 py-1.5 rounded-lg font-bold transition text-slate-600 hover:text-slate-900";
+                } else {
+                    btnGlob.className = "px-3 py-1.5 rounded-lg font-bold transition bg-white text-slate-900 shadow-sm";
+                    btnProc.className = "px-3 py-1.5 rounded-lg font-bold transition text-slate-600 hover:text-slate-900";
+                }
+            }
+            renderCircularFlowchart();
+        }
+
+        function filterCircularNorm(normKey) {
+            circularFilterNorm = normKey;
+            renderCircularFlowchart();
+        }
+
+        function renderCircularFlowchart() {
+            if (circularSubMode === 'global') {
+                renderGlobalPhvaCycle();
+                return;
+            }
+
+            const proc = processes.find(p => p.id === currentProcessId);
+            const canvas = document.getElementById('circular-flowchart-canvas');
+            const kpiBar = document.getElementById('circular-kpi-bar');
+            const tbody = document.getElementById('circular-options-table-body');
+
+            if (!proc) return;
+
+            const nodes = proc.nodes || [];
+
+            // Calculate Metrics
+            let countInputs = 0;
+            let countOutputs = 0;
+            let countDocs = 0;
+            let countIso = 0;
+            let countRisks = 0;
+
+            nodes.forEach(n => {
+                if (n.inputs && n.inputs.trim() !== '' && n.inputs !== 'N/A') countInputs++;
+                if (n.outputs && n.outputs.trim() !== '' && n.outputs !== 'N/A') countOutputs++;
+                if (n.documents && n.documents.trim() !== '' && n.documents !== 'N/A') countDocs++;
+                if ((n.iso9001 && n.iso9001.trim()) || (n.iso14001 && n.iso14001.trim()) || (n.iso45001 && n.iso45001.trim())) countIso++;
+                if (n.risks && n.risks.trim() !== '') countRisks++;
+            });
+
+            // Render KPI bar
+            if (kpiBar) {
+                kpiBar.innerHTML = `
+                    <div class="bg-slate-50 border border-slate-200 p-3 rounded-xl text-center shadow-xs">
+                        <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Pasos en Ciclo</span>
+                        <span class="text-xl font-black text-slate-900">${nodes.length}</span>
+                    </div>
+                    <div class="bg-blue-50/70 border border-blue-200 p-3 rounded-xl text-center shadow-xs">
+                        <span class="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Entradas (Inputs)</span>
+                        <span class="text-xl font-black text-blue-900">${countInputs}</span>
+                    </div>
+                    <div class="bg-emerald-50/70 border border-emerald-200 p-3 rounded-xl text-center shadow-xs">
+                        <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Salidas (Outputs)</span>
+                        <span class="text-xl font-black text-emerald-900">${countOutputs}</span>
+                    </div>
+                    <div class="bg-indigo-50/70 border border-indigo-200 p-3 rounded-xl text-center shadow-xs">
+                        <span class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">Documentos / Reg.</span>
+                        <span class="text-xl font-black text-indigo-900">${countDocs}</span>
+                    </div>
+                    <div class="bg-purple-50/70 border border-purple-200 p-3 rounded-xl text-center shadow-xs">
+                        <span class="text-[10px] font-bold text-purple-700 uppercase tracking-wider block">Requisitos ISO</span>
+                        <span class="text-xl font-black text-purple-900">${countIso}</span>
+                    </div>
+                    <div class="bg-amber-50/70 border border-amber-200 p-3 rounded-xl text-center shadow-xs">
+                        <span class="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">Controles de Riesgo</span>
+                        <span class="text-xl font-black text-amber-900">${countRisks}</span>
+                    </div>
+                `;
+            }
+
+            // Render Circular Canvas
+            if (!canvas) return;
+
+            if (nodes.length === 0) {
+                canvas.innerHTML = `
+                    <div class="text-center py-24 text-slate-400">
+                        <div class="text-4xl mb-2">🔄</div>
+                        <p class="text-sm font-semibold text-slate-300">Este proceso no tiene actividades registradas aún.</p>
+                        <p class="text-xs text-slate-500 mt-1">Haga clic en "+ Agregar Paso" para comenzar a configurar su circuito.</p>
+                        <button onclick="openNodeModal()" class="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-sm">
+                            + Agregar Primer Paso
+                        </button>
+                    </div>
+                `;
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="11" class="p-8 text-center text-slate-400 italic">No hay actividades registradas en este proceso.</td></tr>`;
+                }
+                return;
+            }
+
+            const N = nodes.length;
+            const R = 300; // Radius in px
+            const centerSvgX = 500;
+            const centerSvgY = 440;
+
+            // Generate SVG paths
+            let svgPaths = '';
+            for (let i = 0; i < N; i++) {
+                const isLast = i === N - 1;
+                const nextIdx = (i + 1) % N;
+
+                const a1 = -Math.PI / 2 + (2 * Math.PI * i) / N;
+                const a2 = -Math.PI / 2 + (2 * Math.PI * nextIdx) / N;
+
+                // Spacing angle offset
+                const offset = N === 1 ? 0 : 0.22;
+                const startA = a1 + offset;
+                const endA = a2 - offset;
+
+                const x1 = centerSvgX + R * Math.cos(startA);
+                const y1 = centerSvgY + R * Math.sin(startA);
+                const x2 = centerSvgX + R * Math.cos(endA);
+                const y2 = centerSvgY + R * Math.sin(endA);
+
+                if (isLast) {
+                    // Loop-back return arc (Feedback / Continuous Improvement loop)
+                    svgPaths += `
+                        <path d="M ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2}" 
+                              fill="none" 
+                              stroke="#10b981" 
+                              stroke-width="3" 
+                              class="animate-dash-flow" 
+                              marker-end="url(#arrow-feedback)" 
+                              filter="url(#glow-feedback)"/>
+                    `;
+                } else {
+                    // Regular clockwise connector arc
+                    svgPaths += `
+                        <path d="M ${x1} ${y1} A ${R} ${R} 0 0 1 ${x2} ${y2}" 
+                              fill="none" 
+                              stroke="#3b82f6" 
+                              stroke-width="2.5" 
+                              marker-end="url(#arrow-regular)" 
+                              opacity="0.85"/>
+                    `;
+                }
+            }
+
+            // Quadrant labels & background circular track
+            const svgOverlay = `
+                <svg class="absolute inset-0 w-full h-full pointer-events-none" viewBox="0 0 1000 880" preserveAspectRatio="xMidYMid meet">
+                    <defs>
+                        <marker id="arrow-regular" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                            <path d="M 0 1 L 8 5 L 0 9 z" fill="#3b82f6"/>
+                        </marker>
+                        <marker id="arrow-feedback" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                            <path d="M 0 1 L 9 5 L 0 9 z" fill="#10b981"/>
+                        </marker>
+                        <filter id="glow-feedback" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="3" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                        </filter>
+                    </defs>
+
+                    <!-- Background orbital guide circles -->
+                    <circle cx="${centerSvgX}" cy="${centerSvgY}" r="${R}" fill="none" stroke="#334155" stroke-dasharray="4 6" stroke-width="1.2" opacity="0.6"/>
+                    <circle cx="${centerSvgX}" cy="${centerSvgY}" r="${R + 130}" fill="none" stroke="#1e293b" stroke-width="1" opacity="0.4"/>
+                    <circle cx="${centerSvgX}" cy="${centerSvgY}" r="115" fill="none" stroke="#475569" stroke-width="1.5" stroke-dasharray="3 3" opacity="0.5"/>
+
+                    <!-- Quadrant Guide Crosshairs and PHVA text -->
+                    <text x="${centerSvgX + 170}" y="${centerSvgY - 210}" fill="#3b82f6" font-size="11" font-weight="bold" opacity="0.45" letter-spacing="1">1. PLANIFICAR</text>
+                    <text x="${centerSvgX + 170}" y="${centerSvgY + 220}" fill="#10b981" font-size="11" font-weight="bold" opacity="0.45" letter-spacing="1">2. HACER</text>
+                    <text x="${centerSvgX - 250}" y="${centerSvgY + 220}" fill="#f59e0b" font-size="11" font-weight="bold" opacity="0.45" letter-spacing="1">3. VERIFICAR</text>
+                    <text x="${centerSvgX - 240}" y="${centerSvgY - 210}" fill="#ef4444" font-size="11" font-weight="bold" opacity="0.45" letter-spacing="1">4. ACTUAR</text>
+
+                    <!-- Rendered Flow Arcs -->
+                    ${svgPaths}
+                </svg>
+            `;
+
+            // Center Process Hub HTML
+            const centerHubHtml = `
+                <div class="absolute z-20 w-[220px] h-[220px] rounded-full bg-slate-900/95 border-2 border-indigo-500/80 shadow-[0_0_40px_rgba(99,102,241,0.35)] flex flex-col items-center justify-center text-center p-4" 
+                     style="left: 50%; top: 50%; transform: translate(-50%, -50%);">
+                    <span class="text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                        ${proc.category === 'strategic' ? 'Estratégico' : proc.category === 'support' ? 'Soporte' : 'Operativo Clave'}
+                    </span>
+                    <h4 class="text-xs font-bold text-white mt-1.5 leading-tight line-clamp-2">${proc.name}</h4>
+                    <p class="text-[10px] text-slate-300 mt-1">👤 ${proc.owner}</p>
+                    <div class="mt-2 inline-flex items-center gap-1.5 text-[9px] font-bold text-emerald-300 bg-emerald-950/80 px-2.5 py-0.5 rounded-full border border-emerald-700/80">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                        Ciclo PHVA Cerrado
+                    </div>
+                    <span class="text-[9px] text-slate-400 mt-1 block">Pasos: <strong>${nodes.length}</strong></span>
+                </div>
+            `;
+
+            // Orbital Node Cards HTML
+            const orbitalCardsHtml = nodes.map((node, index) => {
+                const angle = -Math.PI / 2 + (2 * Math.PI * index) / N;
+                const leftOffset = Math.round(R * Math.cos(angle));
+                const topOffset = Math.round(R * Math.sin(angle));
+
+                // Symbol definition
+                let typeBadge = '';
+                let borderStyle = 'border-blue-500/60 ring-1 ring-blue-500/20';
+                if (node.type === 'start') {
+                    typeBadge = `<span class="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-[9px] font-bold px-1.5 py-0.5 rounded">🟢 INICIO</span>`;
+                    borderStyle = 'border-emerald-500/70 ring-1 ring-emerald-500/30';
+                } else if (node.type === 'decision') {
+                    typeBadge = `<span class="bg-amber-500/20 text-amber-300 border border-amber-500/40 text-[9px] font-bold px-1.5 py-0.5 rounded">🔶 DECISIÓN</span>`;
+                    borderStyle = 'border-amber-500/70 ring-1 ring-amber-500/30';
+                } else if (node.type === 'document') {
+                    typeBadge = `<span class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-[9px] font-bold px-1.5 py-0.5 rounded">📄 REGISTRO</span>`;
+                    borderStyle = 'border-indigo-500/70 ring-1 ring-indigo-500/30';
+                } else if (node.type === 'end') {
+                    typeBadge = `<span class="bg-rose-500/20 text-rose-300 border border-rose-500/40 text-[9px] font-bold px-1.5 py-0.5 rounded">🔴 RETORNO/FIN</span>`;
+                    borderStyle = 'border-rose-500/70 ring-1 ring-rose-500/30';
+                } else {
+                    typeBadge = `<span class="bg-blue-500/20 text-blue-300 border border-blue-500/40 text-[9px] font-bold px-1.5 py-0.5 rounded">🟦 ACTIVIDAD</span>`;
+                }
+
+                // PHVA badge
+                const phvaVal = node.phva || (node.type === 'start' ? 'plan' : node.type === 'decision' ? 'check' : node.type === 'end' ? 'act' : 'do');
+                let phvaBadge = '';
+                if (phvaVal === 'plan') phvaBadge = `<span class="bg-blue-900/90 text-blue-200 border border-blue-700 text-[9px] font-bold px-1.5 py-0.5 rounded">🔵 PLANEAR</span>`;
+                else if (phvaVal === 'do') phvaBadge = `<span class="bg-emerald-900/90 text-emerald-200 border border-emerald-700 text-[9px] font-bold px-1.5 py-0.5 rounded">🟢 HACER</span>`;
+                else if (phvaVal === 'check') phvaBadge = `<span class="bg-amber-900/90 text-amber-200 border border-amber-700 text-[9px] font-bold px-1.5 py-0.5 rounded">🟡 VERIFICAR</span>`;
+                else phvaBadge = `<span class="bg-rose-900/90 text-rose-200 border border-rose-700 text-[9px] font-bold px-1.5 py-0.5 rounded">🔴 ACTUAR</span>`;
+
+                // Filtering by norm
+                let opacityStyle = 'opacity-100';
+                if (circularFilterNorm !== 'ALL') {
+                    const normContent = (node[circularFilterNorm] || '').trim();
+                    if (!normContent) {
+                        opacityStyle = 'opacity-30 hover:opacity-100';
+                    } else {
+                        borderStyle += ' ring-2 ring-yellow-400 shadow-[0_0_15px_rgba(250,204,21,0.4)]';
+                    }
+                }
+
+                return `
+                    <div class="circular-node-card absolute z-20 w-[265px] sm:w-[280px] p-3 rounded-xl bg-slate-900/95 text-white border ${borderStyle} shadow-xl text-left ${opacityStyle}"
+                         style="left: calc(50% + ${leftOffset}px); top: calc(50% + ${topOffset}px); transform: translate(-50%, -50%);">
+                        
+                        <!-- Header with Step number, symbol and phva -->
+                        <div class="flex items-center justify-between pb-1.5 border-b border-slate-800">
+                            <div class="flex items-center gap-1.5">
+                                <span class="bg-slate-800 text-slate-200 text-[10px] font-black px-1.5 py-0.5 rounded border border-slate-700">#${index + 1}</span>
+                                ${typeBadge}
+                            </div>
+                            <div class="flex items-center gap-1">
+                                ${phvaBadge}
+                                <button onclick="editFlowNode(${index})" class="text-slate-400 hover:text-blue-400 text-xs p-0.5 ml-1" title="Editar">✏️</button>
+                                <button onclick="deleteFlowNode(${index})" class="text-slate-400 hover:text-rose-400 text-xs p-0.5" title="Eliminar">🗑️</button>
+                            </div>
+                        </div>
+
+                        <!-- Activity Title -->
+                        <h5 class="text-xs font-bold text-slate-100 mt-2 leading-snug line-clamp-2">${node.title}</h5>
+
+                        <!-- Responsible -->
+                        <div class="text-[10px] text-slate-300 mt-1 flex items-center gap-1">
+                            <span class="text-slate-400 font-semibold">👤 Resp:</span>
+                            <span class="font-medium text-slate-200 truncate">${node.responsible || 'No asignado'}</span>
+                        </div>
+
+                        <!-- Inputs & Outputs Box -->
+                        <div class="grid grid-cols-2 gap-1.5 mt-2 bg-slate-950/80 p-2 rounded-lg border border-slate-800/80 text-[10px]">
+                            <div>
+                                <span class="text-blue-400 font-bold block">📥 Entrada:</span>
+                                <span class="text-slate-300 block truncate" title="${node.inputs || 'N/A'}">${node.inputs || 'N/A'}</span>
+                            </div>
+                            <div>
+                                <span class="text-emerald-400 font-bold block">📤 Salida:</span>
+                                <span class="text-slate-300 block truncate" title="${node.outputs || 'N/A'}">${node.outputs || 'N/A'}</span>
+                            </div>
+                        </div>
+
+                        <!-- Documents -->
+                        ${node.documents ? `
+                            <div class="text-[10px] text-indigo-300 mt-1.5 bg-indigo-950/40 px-2 py-1 rounded border border-indigo-900/60 truncate" title="${node.documents}">
+                                📄 <strong class="text-indigo-200">Doc:</strong> ${node.documents}
+                            </div>
+                        ` : ''}
+
+                        <!-- Associated ISO standards -->
+                        <div class="flex flex-wrap gap-1 mt-2">
+                            ${selectedIsoNorms.iso9001 && node.iso9001 ? `<span class="bg-blue-900/90 text-blue-200 text-[9px] px-1.5 py-0.5 rounded border border-blue-700">9001: ${node.iso9001}</span>` : ''}
+                            ${selectedIsoNorms.iso14001 && node.iso14001 ? `<span class="bg-emerald-900/90 text-emerald-200 text-[9px] px-1.5 py-0.5 rounded border border-emerald-700">14001: ${node.iso14001}</span>` : ''}
+                            ${selectedIsoNorms.iso45001 && node.iso45001 ? `<span class="bg-amber-900/90 text-amber-200 text-[9px] px-1.5 py-0.5 rounded border border-amber-700">45001: ${node.iso45001}</span>` : ''}
+                        </div>
+
+                        <!-- Risks and controls -->
+                        ${node.risks ? `
+                            <div class="text-[10px] text-amber-200/90 mt-1.5 bg-amber-950/40 p-1.5 rounded border border-amber-800/60 flex items-start gap-1" title="${node.risks}">
+                                <span class="text-amber-400">⚠️</span>
+                                <span class="line-clamp-2">${node.risks}</span>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+
+            canvas.innerHTML = svgOverlay + centerHubHtml + orbitalCardsHtml;
+
+            // Render Table of all entered options
+            if (tbody) {
+                tbody.innerHTML = nodes.map((n, i) => {
+                    const phvaVal = n.phva || (n.type === 'start' ? 'plan' : n.type === 'decision' ? 'check' : n.type === 'end' ? 'act' : 'do');
+                    let phvaBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-100 text-blue-800">Planificar</span>`;
+                    if (phvaVal === 'do') phvaBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800">Hacer</span>`;
+                    else if (phvaVal === 'check') phvaBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-800">Verificar</span>`;
+                    else if (phvaVal === 'act') phvaBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-bold bg-rose-100 text-rose-800">Actuar</span>`;
+
+                    let symLabel = 'Actividad';
+                    if (n.type === 'start') symLabel = 'Inicio';
+                    else if (n.type === 'decision') symLabel = 'Decisión';
+                    else if (n.type === 'document') symLabel = 'Documento';
+                    else if (n.type === 'end') symLabel = 'Fin / Retorno';
+
+                    return `
+                        <tr class="hover:bg-slate-50 transition">
+                            <td class="p-3 text-center font-bold text-slate-800">${i + 1}</td>
+                            <td class="p-3 font-semibold">${phvaBadge}</td>
+                            <td class="p-3 text-slate-600 font-medium">${symLabel}</td>
+                            <td class="p-3 font-bold text-slate-900">${n.title}</td>
+                            <td class="p-3 text-slate-700">${n.responsible || 'N/A'}</td>
+                            <td class="p-3 text-slate-600 bg-blue-50/20">${n.inputs || 'N/A'}</td>
+                            <td class="p-3 text-slate-600 bg-emerald-50/20">${n.outputs || 'N/A'}</td>
+                            <td class="p-3 text-indigo-700 font-medium">${n.documents || 'N/A'}</td>
+                            <td class="p-3">
+                                <div class="flex flex-col gap-1 text-[10px]">
+                                    ${n.iso9001 ? `<span class="text-blue-700 font-semibold">9001: ${n.iso9001}</span>` : ''}
+                                    ${n.iso14001 ? `<span class="text-emerald-700 font-semibold">14001: ${n.iso14001}</span>` : ''}
+                                    ${n.iso45001 ? `<span class="text-amber-700 font-semibold">45001: ${n.iso45001}</span>` : ''}
+                                </div>
+                            </td>
+                            <td class="p-3 text-amber-900 bg-amber-50/30 text-[11px]">${n.risks || 'Sin riesgos mapeados'}</td>
+                            <td class="p-3 text-center">
+                                <div class="flex justify-center gap-1">
+                                    <button onclick="editFlowNode(${i})" class="text-slate-400 hover:text-blue-600 p-1" title="Editar">✏️</button>
+                                    <button onclick="deleteFlowNode(${i})" class="text-slate-400 hover:text-rose-600 p-1" title="Eliminar">🗑️</button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
+        function renderGlobalPhvaCycle() {
+            const canvas = document.getElementById('circular-flowchart-canvas');
+            const kpiBar = document.getElementById('circular-kpi-bar');
+            const tbody = document.getElementById('circular-options-table-body');
+
+            if (kpiBar) {
+                kpiBar.innerHTML = `
+                    <div class="bg-blue-50 border border-blue-200 p-3 rounded-xl text-center shadow-xs">
+                        <span class="text-[10px] font-bold text-blue-700 uppercase tracking-wider block">Fase 1: Planear</span>
+                        <span class="text-sm font-bold text-blue-900">Estrategia & Contexto</span>
+                    </div>
+                    <div class="bg-emerald-50 border border-emerald-200 p-3 rounded-xl text-center shadow-xs">
+                        <span class="text-[10px] font-bold text-emerald-700 uppercase tracking-wider block">Fase 2: Hacer</span>
+                        <span class="text-sm font-bold text-emerald-900">Operaciones & Compras</span>
+                    </div>
+                    <div class="bg-amber-50 border border-amber-200 p-3 rounded-xl text-center shadow-xs">
+                        <span class="text-[10px] font-bold text-amber-700 uppercase tracking-wider block">Fase 3: Verificar</span>
+                        <span class="text-sm font-bold text-amber-900">Control & Auditoría</span>
+                    </div>
+                    <div class="bg-rose-50 border border-rose-200 p-3 rounded-xl text-center shadow-xs">
+                        <span class="text-[10px] font-bold text-rose-700 uppercase tracking-wider block">Fase 4: Actuar</span>
+                        <span class="text-sm font-bold text-rose-900">Mejora Continua</span>
+                    </div>
+                    <div class="bg-slate-100 border border-slate-300 p-3 rounded-xl text-center shadow-xs">
+                        <span class="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">Procesos Globales</span>
+                        <span class="text-xl font-black text-slate-900">${processes.length}</span>
+                    </div>
+                    <div class="bg-indigo-50 border border-indigo-200 p-3 rounded-xl text-center shadow-xs">
+                        <span class="text-[10px] font-bold text-indigo-700 uppercase tracking-wider block">Normas SIG</span>
+                        <span class="text-sm font-bold text-indigo-900">9001 + 14001 + 45001</span>
+                    </div>
+                `;
+            }
+
+            if (!canvas) return;
+
+            canvas.innerHTML = `
+                <div class="w-full max-w-4xl p-6 text-white space-y-6">
+                    <div class="text-center space-y-1">
+                        <span class="text-[11px] font-bold uppercase tracking-widest text-indigo-400 bg-indigo-950/80 px-3 py-1 rounded-full border border-indigo-800">
+                            Macro-Ciclo PHVA Integral del Sistema de Gestión
+                        </span>
+                        <h3 class="text-lg font-extrabold text-white">Ciclo Deming PHVA (ISO 9001 / ISO 14001 / ISO 45001)</h3>
+                        <p class="text-xs text-slate-400">Interacción sistémica entre los procesos de dirección, operacionales, de control y de mejora.</p>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <!-- Quadrant P -->
+                        <div class="bg-slate-900/90 border-2 border-blue-500/80 rounded-2xl p-4 space-y-2.5 shadow-lg relative">
+                            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                                <span class="text-xs font-black uppercase text-blue-400 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-blue-500"></span> 1. PLANIFICAR (PLAN)
+                                </span>
+                                <span class="text-[10px] text-blue-300 font-mono">ISO Cláusulas 4, 5, 6</span>
+                            </div>
+                            <p class="text-[11px] text-slate-300">Definir políticas, objetivos, gestión de riesgos IPERC, aspectos ambientales y contexto.</p>
+                            <div class="space-y-1.5 pt-1">
+                                ${processes.filter(p => p.category === 'strategic').map(p => `
+                                    <div onclick="selectProcessById('${p.id}')" class="cursor-pointer p-2 rounded-lg bg-blue-950/40 border border-blue-800 hover:border-blue-400 transition text-xs flex justify-between items-center">
+                                        <span class="font-bold text-white">${p.name}</span>
+                                        <span class="text-[10px] text-blue-300">Ver Flujograma →</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Quadrant H -->
+                        <div class="bg-slate-900/90 border-2 border-emerald-500/80 rounded-2xl p-4 space-y-2.5 shadow-lg relative">
+                            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                                <span class="text-xs font-black uppercase text-emerald-400 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> 2. HACER (DO)
+                                </span>
+                                <span class="text-[10px] text-emerald-300 font-mono">ISO Cláusulas 7, 8</span>
+                            </div>
+                            <p class="text-[11px] text-slate-300">Ejecución de actividades, control operacional, compras seguras y competencia del personal.</p>
+                            <div class="space-y-1.5 pt-1">
+                                ${processes.filter(p => p.category === 'core').map(p => `
+                                    <div onclick="selectProcessById('${p.id}')" class="cursor-pointer p-2 rounded-lg bg-emerald-950/40 border border-emerald-800 hover:border-emerald-400 transition text-xs flex justify-between items-center">
+                                        <span class="font-bold text-white">${p.name}</span>
+                                        <span class="text-[10px] text-emerald-300">Ver Flujograma →</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <!-- Quadrant V -->
+                        <div class="bg-slate-900/90 border-2 border-amber-500/80 rounded-2xl p-4 space-y-2.5 shadow-lg relative">
+                            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                                <span class="text-xs font-black uppercase text-amber-400 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-amber-500"></span> 3. VERIFICAR (CHECK)
+                                </span>
+                                <span class="text-[10px] text-amber-300 font-mono">ISO Cláusula 9</span>
+                            </div>
+                            <p class="text-[11px] text-slate-300">Seguimiento, medición, calibración, auditorías internas y evaluación de cumplimiento legal.</p>
+                            <div class="p-2.5 rounded-lg bg-amber-950/40 border border-amber-800 text-xs text-amber-200">
+                                <span>🔍 Inspecciones de Liberación de Calidad, Monitoreo Ambiental (emisiones/vertidos), Vigilancia médica SST y Auditorías Internas.</span>
+                            </div>
+                        </div>
+
+                        <!-- Quadrant A -->
+                        <div class="bg-slate-900/90 border-2 border-rose-500/80 rounded-2xl p-4 space-y-2.5 shadow-lg relative">
+                            <div class="flex justify-between items-center pb-2 border-b border-slate-800">
+                                <span class="text-xs font-black uppercase text-rose-400 flex items-center gap-1.5">
+                                    <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> 4. ACTUAR (ACT)
+                                </span>
+                                <span class="text-[10px] text-rose-300 font-mono">ISO Cláusula 10</span>
+                            </div>
+                            <p class="text-[11px] text-slate-300">Tratamiento de No Conformidades, análisis de causa raíz y ejecución de planes correctivos.</p>
+                            <div class="p-2.5 rounded-lg bg-rose-950/40 border border-rose-800 text-xs text-rose-200">
+                                <span>🚀 Cierre de brechas diagnósticas, lecciones aprendidas y retroalimentación hacia la Dirección Estratégica.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            if (tbody) {
+                tbody.innerHTML = processes.map((p, idx) => `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-3 text-center font-bold text-slate-800">${idx + 1}</td>
+                        <td class="p-3 font-semibold text-blue-700">${p.category === 'strategic' ? 'Planear' : p.category === 'core' ? 'Hacer' : 'Apoyo / Control'}</td>
+                        <td class="p-3 text-slate-600 font-medium">${p.category}</td>
+                        <td class="p-3 font-bold text-slate-900">${p.name}</td>
+                        <td class="p-3 text-slate-700">${p.owner}</td>
+                        <td class="p-3 text-slate-600 bg-blue-50/20">${p.nodes.map(n=>n.inputs).filter(Boolean).join(', ') || 'N/A'}</td>
+                        <td class="p-3 text-slate-600 bg-emerald-50/20">${p.nodes.map(n=>n.outputs).filter(Boolean).join(', ') || 'N/A'}</td>
+                        <td class="p-3 text-indigo-700 font-medium">${p.nodes.map(n=>n.documents).filter(Boolean).join(', ') || 'N/A'}</td>
+                        <td class="p-3 text-xs text-slate-600">${p.nodes.length} paso(s)</td>
+                        <td class="p-3 text-slate-600 text-xs">${p.objective}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="selectProcessById('${p.id}')" class="bg-slate-900 text-white text-[11px] font-bold px-2.5 py-1 rounded hover:bg-slate-800 transition">
+                                Ver
+                            </button>
+                        </td>
+                    </tr>
+                `).join('');
+            }
+        }
+
+        function renderMacroProcessMap() {
+            const strategicContainer = document.getElementById('macro-strategic-list');
+            const coreContainer = document.getElementById('macro-core-list');
+            const supportContainer = document.getElementById('macro-support-list');
+
+            const renderCard = (p) => `
+                <div onclick="selectProcessById('${p.id}')" class="cursor-pointer p-3 rounded-lg border ${p.id === currentProcessId ? 'bg-slate-900 text-white border-slate-900 shadow-md ring-2 ring-blue-500' : 'bg-white text-slate-800 border-slate-200 hover:border-slate-400'} transition flex flex-col justify-between">
+                    <div>
+                        <span class="text-[10px] font-bold uppercase tracking-wider ${p.id === currentProcessId ? 'text-blue-300' : 'text-slate-500'}">Paso(s): ${p.nodes.length}</span>
+                        <h5 class="text-xs font-bold mt-0.5 leading-snug">${p.name}</h5>
+                    </div>
+                    <span class="text-[10px] mt-2 block ${p.id === currentProcessId ? 'text-slate-300' : 'text-slate-500'}">👤 ${p.owner}</span>
+                </div>
+            `;
+
+            strategicContainer.innerHTML = processes.filter(p => p.category === 'strategic').map(renderCard).join('') || '<p class="text-xs text-slate-400 italic">Sin procesos</p>';
+            coreContainer.innerHTML = processes.filter(p => p.category === 'core').map(renderCard).join('') || '<p class="text-xs text-slate-400 italic">Sin procesos</p>';
+            supportContainer.innerHTML = processes.filter(p => p.category === 'support').map(renderCard).join('') || '<p class="text-xs text-slate-400 italic">Sin procesos</p>';
+        }
+
+        function selectProcessById(procId) {
+            currentProcessId = procId;
+            document.getElementById('select-process-list').value = procId;
+            loadSelectedProcess();
+            switchProcessViewMode('graphic');
+        }
+
+        function renderGraphicalFlowchart() {
+            const process = processes.find(p => p.id === currentProcessId);
+            const board = document.getElementById('graphical-flowchart-board');
+
+            if (!process || process.nodes.length === 0) {
+                board.innerHTML = `
+                    <div class="text-center py-16 text-slate-400">
+                        <p class="text-sm">No hay actividades agregadas en este flujograma.</p>
+                        <button onclick="openNodeModal()" class="mt-2 text-xs text-blue-400 font-bold underline">+ Agregar primer símbolo</button>
+                    </div>
+                `;
+                return;
+            }
+
+            board.innerHTML = process.nodes.map((node, index) => {
+                const isLast = index === process.nodes.length - 1;
+                let shapeMarkup = '';
+
+                // Generate Symbol standard shape
+                if (node.type === 'start') {
+                    shapeMarkup = `
+                        <div class="bg-gradient-to-r from-emerald-600 to-teal-600 text-white rounded-full px-8 py-3 font-bold text-xs shadow-lg border border-emerald-400 flex items-center gap-2 max-w-sm text-center">
+                            <span>🟢 INICIO: ${node.title}</span>
+                        </div>
+                    `;
+                } else if (node.type === 'decision') {
+                    shapeMarkup = `
+                        <div class="relative group my-2">
+                            <div class="w-52 h-28 bg-gradient-to-br from-amber-500 to-orange-600 text-white font-bold text-xs p-4 flex flex-col items-center justify-center text-center shadow-lg transform rotate-0 border border-amber-300 rounded-xl">
+                                <span class="text-[10px] text-amber-200 uppercase font-semibold">🔶 Control / Decisión</span>
+                                <span class="text-xs mt-1 leading-tight">${node.title}</span>
+                                <div class="flex justify-between w-full text-[10px] text-amber-100 font-extrabold mt-2 px-1">
+                                    <span>✔ SÍ (Sigue)</span>
+                                    <span>✖ NO (Corrección)</span>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                } else if (node.type === 'document') {
+                    shapeMarkup = `
+                        <div class="bg-slate-800 border-2 border-indigo-500 text-white p-4 rounded-xl shadow-lg w-72 text-center space-y-1">
+                            <span class="text-[10px] font-bold text-indigo-400 block uppercase">📄 Registro / Documentación Mandatory</span>
+                            <h5 class="text-xs font-bold">${node.title}</h5>
+                            <p class="text-[11px] text-indigo-200 font-mono">${node.documents || 'Doc no especificado'}</p>
+                        </div>
+                    `;
+                } else if (node.type === 'end') {
+                    shapeMarkup = `
+                        <div class="bg-gradient-to-r from-rose-600 to-red-700 text-white rounded-full px-8 py-3 font-bold text-xs shadow-lg border border-rose-400 flex items-center gap-2 max-w-sm text-center">
+                            <span>🔴 FIN: ${node.title}</span>
+                        </div>
+                    `;
+                } else {
+                    // Default process block
+                    shapeMarkup = `
+                        <div class="bg-gradient-to-br from-slate-800 to-slate-900 border-2 border-blue-500 text-white rounded-xl p-4 shadow-lg w-80 space-y-2 relative">
+                            <div class="flex justify-between items-start">
+                                <span class="text-[10px] font-bold text-blue-400 uppercase tracking-wider">🟦 Actividad #${index + 1}</span>
+                                <div class="flex gap-1 text-[11px]">
+                                    <button onclick="editFlowNode(${index})" class="text-slate-400 hover:text-blue-400">✏️</button>
+                                    <button onclick="deleteFlowNode(${index})" class="text-slate-400 hover:text-rose-400">🗑️</button>
+                                </div>
+                            </div>
+                            <h5 class="text-xs font-bold text-slate-100 leading-snug">${node.title}</h5>
+                            <div class="text-[10px] text-slate-300 bg-slate-950/60 p-2 rounded border border-slate-800 space-y-1">
+                                <div><strong class="text-slate-400">👤 Resp:</strong> ${node.responsible || 'N/A'}</div>
+                                ${node.documents ? `<div><strong class="text-blue-300">📄 Doc:</strong> ${node.documents}</div>` : ''}
+                            </div>
+                            <!-- ISO Badges -->
+                            <div class="flex flex-wrap gap-1">
+                                ${node.iso9001 ? `<span class="bg-blue-900/80 text-blue-200 text-[9px] px-1.5 py-0.5 rounded border border-blue-700">9001: ${node.iso9001}</span>` : ''}
+                                ${node.iso14001 ? `<span class="bg-emerald-900/80 text-emerald-200 text-[9px] px-1.5 py-0.5 rounded border border-emerald-700">14001: ${node.iso14001}</span>` : ''}
+                                ${node.iso45001 ? `<span class="bg-amber-900/80 text-amber-200 text-[9px] px-1.5 py-0.5 rounded border border-amber-700">45001: ${node.iso45001}</span>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="flex flex-col items-center">
+                        ${shapeMarkup}
+
+                        ${!isLast ? `
+                            <div class="flex flex-col items-center my-2">
+                                <div class="w-0.5 h-8 bg-blue-500"></div>
+                                <svg class="w-5 h-5 text-blue-500 -mt-2" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
+                                </svg>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function openProcessModal() {
+            document.getElementById('proc-name').value = '';
+            document.getElementById('proc-category').value = 'core';
+            document.getElementById('proc-owner').value = '';
+            document.getElementById('proc-objective').value = '';
+            document.getElementById('modal-process').classList.remove('hidden');
+        }
+
+        function closeProcessModal() {
+            document.getElementById('modal-process').classList.add('hidden');
+        }
+
+        function saveProcess() {
+            const name = document.getElementById('proc-name').value.trim();
+            const category = document.getElementById('proc-category').value;
+            const owner = document.getElementById('proc-owner').value.trim();
+            const objective = document.getElementById('proc-objective').value.trim();
+
+            if (!name) {
+                alert('Ingrese el nombre del proceso.');
+                return;
+            }
+
+            const newProc = {
+                id: 'proc_' + Date.now(),
+                category: category || 'core',
+                name: name,
+                owner: owner || 'Sin asignar',
+                objective: objective || 'Sin especificar',
+                nodes: []
+            };
+
+            processes.push(newProc);
+            currentProcessId = newProc.id;
+            renderProcessSelector();
+            loadSelectedProcess();
+            closeProcessModal();
+            if (activeProcessViewMode === 'macro') renderMacroProcessMap();
+            else if (activeProcessViewMode === 'circular') renderCircularFlowchart();
+        }
+
+        function openNodeModal() {
+            editingNodeIndex = -1;
+            document.getElementById('node-title').value = '';
+            document.getElementById('node-type').value = 'process';
+            document.getElementById('node-phva').value = 'do';
+            document.getElementById('node-responsible').value = '';
+            document.getElementById('node-documents').value = '';
+            document.getElementById('node-inputs').value = '';
+            document.getElementById('node-outputs').value = '';
+            document.getElementById('node-iso9001').value = '';
+            document.getElementById('node-iso14001').value = '';
+            document.getElementById('node-iso45001').value = '';
+            document.getElementById('node-risks').value = '';
+            document.getElementById('modal-node').classList.remove('hidden');
+        }
+
+        function closeNodeModal() {
+            document.getElementById('modal-node').classList.add('hidden');
+        }
+
+        function editFlowNode(index) {
+            const process = processes.find(p => p.id === currentProcessId);
+            if (!process) return;
+            const node = process.nodes[index];
+            editingNodeIndex = index;
+
+            document.getElementById('node-title').value = node.title || '';
+            document.getElementById('node-type').value = node.type || 'process';
+            document.getElementById('node-phva').value = node.phva || (node.type === 'start' ? 'plan' : node.type === 'decision' ? 'check' : node.type === 'end' ? 'act' : 'do');
+            document.getElementById('node-responsible').value = node.responsible || '';
+            document.getElementById('node-documents').value = node.documents || '';
+            document.getElementById('node-inputs').value = node.inputs || '';
+            document.getElementById('node-outputs').value = node.outputs || '';
+            document.getElementById('node-iso9001').value = node.iso9001 || '';
+            document.getElementById('node-iso14001').value = node.iso14001 || '';
+            document.getElementById('node-iso45001').value = node.iso45001 || '';
+            document.getElementById('node-risks').value = node.risks || '';
+
+            document.getElementById('modal-node').classList.remove('hidden');
+        }
+
+        function saveFlowNode() {
+            const title = document.getElementById('node-title').value.trim();
+            if (!title) {
+                alert('El título de la actividad es obligatorio.');
+                return;
+            }
+
+            const process = processes.find(p => p.id === currentProcessId);
+            if (!process) return;
+
+            const nodeData = {
+                type: document.getElementById('node-type').value,
+                phva: document.getElementById('node-phva').value,
+                title: title,
+                responsible: document.getElementById('node-responsible').value.trim(),
+                documents: document.getElementById('node-documents').value.trim(),
+                inputs: document.getElementById('node-inputs').value.trim(),
+                outputs: document.getElementById('node-outputs').value.trim(),
+                iso9001: document.getElementById('node-iso9001').value.trim(),
+                iso14001: document.getElementById('node-iso14001').value.trim(),
+                iso45001: document.getElementById('node-iso45001').value.trim(),
+                risks: document.getElementById('node-risks').value.trim()
+            };
+
+            if (editingNodeIndex >= 0) {
+                process.nodes[editingNodeIndex] = nodeData;
+            } else {
+                process.nodes.push(nodeData);
+            }
+
+            if (activeProcessViewMode === 'circular') renderCircularFlowchart();
+            else if (activeProcessViewMode === 'graphic') renderGraphicalFlowchart();
+            else renderFlowchart();
+
+            closeNodeModal();
+        }
+
+        function deleteFlowNode(index) {
+            const process = processes.find(p => p.id === currentProcessId);
+            if (!process) return;
+            if (confirm('¿Desea eliminar este paso del diagrama?')) {
+                process.nodes.splice(index, 1);
+                if (activeProcessViewMode === 'circular') renderCircularFlowchart();
+                else if (activeProcessViewMode === 'graphic') renderGraphicalFlowchart();
+                else renderFlowchart();
+            }
+        }
+
+        function renderProcessSelector() {
+            const select = document.getElementById('select-process-list');
+            select.innerHTML = processes.map(p => `<option value="${p.id}">${p.name}</option>`).join('');
+            select.value = currentProcessId;
+        }
+
+        function loadSelectedProcess() {
+            const select = document.getElementById('select-process-list');
+            currentProcessId = select.value;
+            const process = processes.find(p => p.id === currentProcessId);
+
+            if (process) {
+                const metaCard = document.getElementById('process-meta-card');
+                if (metaCard) {
+                    metaCard.innerHTML = `
+                        <div class="flex flex-col md:flex-row justify-between md:items-center gap-3">
+                            <div>
+                                <span class="text-[10px] uppercase font-bold tracking-wider text-blue-400">Proceso Seleccionado</span>
+                                <h3 class="text-base font-bold text-white">${process.name}</h3>
+                                <p class="text-xs text-slate-300 mt-1"><strong>Objetivo:</strong> ${process.objective}</p>
+                            </div>
+                            <div class="bg-slate-800/90 p-3 rounded-lg border border-slate-700 text-xs">
+                                <span class="text-slate-400 block">Dueño del Proceso:</span>
+                                <span class="font-bold text-slate-100">${process.owner}</span>
+                                <span class="text-[11px] text-slate-400 block mt-1">Pasos Configurados: <strong>${process.nodes.length}</strong></span>
+                            </div>
+                        </div>
+                    `;
+                }
+                if (activeProcessViewMode === 'circular') renderCircularFlowchart();
+                else if (activeProcessViewMode === 'graphic') renderGraphicalFlowchart();
+                else if (activeProcessViewMode === 'sipoc') renderFlowchart();
+            }
+        }
+
+        function renderFlowchart() {
+            const process = processes.find(p => p.id === currentProcessId);
+            const container = document.getElementById('flowchart-nodes-container');
+
+            if (!process || process.nodes.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-12 text-slate-400">
+                        <p class="text-sm">No hay pasos definidos para este proceso.</p>
+                        <button onclick="openNodeModal()" class="mt-2 text-xs text-blue-600 font-bold underline">Agregar el primer paso</button>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = process.nodes.map((node, index) => {
+                const isLast = index === process.nodes.length - 1;
+
+                return `
+                    <div class="relative flex flex-col md:flex-row items-stretch gap-4">
+                        <!-- Node Step Counter Badge -->
+                        <div class="flex md:flex-col items-center justify-center bg-slate-900 text-white rounded-xl px-3.5 py-2 font-bold text-sm shadow-md min-w-[50px] text-center border border-slate-700">
+                            <span>#${index + 1}</span>
+                        </div>
+
+                        <!-- Main Step Content Box -->
+                        <div class="flex-grow bg-slate-50 border border-slate-200 rounded-xl p-4 node-hover space-y-3 relative">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <h4 class="font-bold text-slate-900 text-sm">${node.title}</h4>
+                                    <span class="inline-block bg-slate-200 text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded mt-1">
+                                        👤 Responsable: ${node.responsible || 'No asignado'}
+                                    </span>
+                                </div>
+                                <div class="flex items-center gap-1">
+                                    <button onclick="editFlowNode(${index})" class="text-xs text-slate-500 hover:text-blue-600 p-1">✏️ Editar</button>
+                                    <button onclick="deleteFlowNode(${index})" class="text-xs text-slate-500 hover:text-rose-600 p-1">🗑️</button>
+                                </div>
+                            </div>
+
+                            <!-- Input/Output & Documents -->
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-2 text-[11px] text-slate-600 bg-white p-2.5 rounded-lg border border-slate-100">
+                                <div>
+                                    <span class="font-semibold text-slate-700 block">📥 Entradas (Inputs):</span>
+                                    <span>${node.inputs || 'N/A'}</span>
+                                </div>
+                                <div>
+                                    <span class="font-semibold text-slate-700 block">📤 Salidas (Outputs):</span>
+                                    <span>${node.outputs || 'N/A'}</span>
+                                </div>
+                                <div>
+                                    <span class="font-semibold text-slate-700 block">📄 Documentos/Registros:</span>
+                                    <span class="text-blue-700 font-medium">${node.documents || 'N/A'}</span>
+                                </div>
+                            </div>
+
+                            <!-- Associated ISO Standards -->
+                            <div class="flex flex-wrap gap-1.5 pt-1">
+                                ${selectedIsoNorms.iso9001 && node.iso9001 ? `<span class="bg-blue-100 text-blue-800 text-[10px] font-bold px-2 py-0.5 rounded border border-blue-200">ISO 9001: ${node.iso9001}</span>` : ''}
+                                ${selectedIsoNorms.iso14001 && node.iso14001 ? `<span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded border border-emerald-200">ISO 14001: ${node.iso14001}</span>` : ''}
+                                ${selectedIsoNorms.iso45001 && node.iso45001 ? `<span class="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded border border-amber-200">ISO 45001: ${node.iso45001}</span>` : ''}
+                            </div>
+
+                            ${node.risks ? `
+                                <div class="bg-amber-50 text-amber-900 text-[11px] p-2 rounded border border-amber-200 flex items-start gap-1.5">
+                                    <span class="text-amber-600">⚠️</span>
+                                    <span>${node.risks}</span>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+
+                    ${!isLast ? `
+                        <div class="flex justify-center my-1">
+                            <div class="w-0.5 h-6 bg-slate-300 flex items-center justify-center">
+                                <svg class="w-4 h-4 text-slate-400 translate-y-2" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/></svg>
+                            </div>
+                        </div>
+                    ` : ''}
+                `;
+            }).join('');
+        }
+
+        function selectChecklistIsoTab(normKey) {
+            activeChecklistTab = normKey;
+
+            document.querySelectorAll('.iso-tab-btn').forEach(btn => {
+                btn.className = "iso-tab-btn flex-1 py-2.5 text-xs font-bold rounded-lg transition text-slate-600 hover:bg-slate-100 flex items-center justify-center gap-2";
+            });
+
+            const activeBtn = document.getElementById(`btn-iso-tab-${normKey}`);
+            if(normKey === '9001') activeBtn.className = "iso-tab-btn flex-1 py-2.5 text-xs font-bold rounded-lg transition text-white bg-blue-600 shadow-sm flex items-center justify-center gap-2";
+            if(normKey === '14001') activeBtn.className = "iso-tab-btn flex-1 py-2.5 text-xs font-bold rounded-lg transition text-white bg-emerald-600 shadow-sm flex items-center justify-center gap-2";
+            if(normKey === '45001') activeBtn.className = "iso-tab-btn flex-1 py-2.5 text-xs font-bold rounded-lg transition text-white bg-amber-600 shadow-sm flex items-center justify-center gap-2";
+
+            renderChecklistTable();
+        }
+
+        function renderChecklistTable() {
+            const isStandardActive = (activeChecklistTab === '9001' && selectedIsoNorms.iso9001) ||
+                                     (activeChecklistTab === '14001' && selectedIsoNorms.iso14001) ||
+                                     (activeChecklistTab === '45001' && selectedIsoNorms.iso45001);
+
+            const warningNotice = document.getElementById('checklist-disabled-notice');
+            if(!isStandardActive) {
+                warningNotice.classList.remove('hidden');
+            } else {
+                warningNotice.classList.add('hidden');
+            }
+
+            const items = isoChecklists[activeChecklistTab] || [];
+            const filterStatus = document.getElementById('filter-checklist-status').value;
+            const tbody = document.getElementById('checklist-table-body');
+
+            const filteredItems = items.filter(i => filterStatus === 'ALL' || i.status === filterStatus);
+
+            document.getElementById('checklist-title').innerText = `Lista de Chequeo ISO ${activeChecklistTab === '9001' ? '9001:2015 Calidad' : activeChecklistTab === '14001' ? '14001:2015 Medio Ambiente' : '45001:2018 SST'}`;
+
+            tbody.innerHTML = filteredItems.map((item, idx) => {
+                let statusBadge = '';
+                if(item.status === 'CUMPLE') {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-300">🟢 CUMPLE</span>`;
+                } else if(item.status === 'PARCIAL') {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-300">🟡 PARCIAL</span>`;
+                } else {
+                    statusBadge = `<span class="px-2.5 py-1 rounded-full text-[10px] font-bold bg-rose-100 text-rose-800 border border-rose-300">🔴 NO CUMPLE</span>`;
+                }
+
+                return `
+                    <tr class="hover:bg-slate-50/80 transition">
+                        <td class="p-3.5 font-bold text-slate-800 text-[11px]">${item.clause}</td>
+                        <td class="p-3.5 text-slate-700">${item.req}</td>
+                        <td class="p-3.5">${statusBadge}</td>
+                        <td class="p-3.5 text-slate-700 bg-slate-50/50">${item.obs || '<span class="text-slate-400 italic">Sin diagnóstico</span>'}</td>
+                        <td class="p-3.5 text-blue-800 font-medium">${item.evidence || '<span class="text-slate-400 italic">Sin evidencias</span>'}</td>
+                        <td class="p-3.5 text-center">
+                            <button onclick="openChecklistModal('${activeChecklistTab}', '${item.clause}')" class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold px-2.5 py-1 rounded text-[11px] transition">
+                                Evaluar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function openChecklistModal(standardKey, clauseKey) {
+            const items = isoChecklists[standardKey];
+            const item = items.find(i => i.clause === clauseKey);
+            if (!item) return;
+
+            document.getElementById('edit-item-standard').value = standardKey;
+            document.getElementById('edit-item-clause').value = clauseKey;
+            document.getElementById('modal-checklist-title').innerText = `Diagnóstico Requisito ${clauseKey} (ISO ${standardKey})`;
+            document.getElementById('edit-item-req-text').innerText = item.req;
+            document.getElementById('edit-item-status').value = item.status;
+            document.getElementById('edit-item-observations').value = item.obs || '';
+            document.getElementById('edit-item-evidence').value = item.evidence || '';
+
+            document.getElementById('modal-checklist-item').classList.remove('hidden');
+        }
+
+        function closeChecklistModal() {
+            document.getElementById('modal-checklist-item').classList.add('hidden');
+        }
+
+        function saveChecklistEvaluation() {
+            const standardKey = document.getElementById('edit-item-standard').value;
+            const clauseKey = document.getElementById('edit-item-clause').value;
+
+            const item = isoChecklists[standardKey].find(i => i.clause === clauseKey);
+            if (item) {
+                item.status = document.getElementById('edit-item-status').value;
+                item.obs = document.getElementById('edit-item-observations').value.trim();
+                item.evidence = document.getElementById('edit-item-evidence').value.trim();
+            }
+
+            renderChecklistTable();
+            updateScores();
+            closeChecklistModal();
+        }
+
+        function calculateNormScore(normKey) {
+            const items = isoChecklists[normKey] || [];
+            if (items.length === 0) return 0;
+
+            let totalPoints = 0;
+            items.forEach(i => {
+                if (i.status === 'CUMPLE') totalPoints += 100;
+                else if (i.status === 'PARCIAL') totalPoints += 50;
+                else totalPoints += 0;
+            });
+
+            return Math.round(totalPoints / items.length);
+        }
+
+        function updateScores() {
+            const score9001 = calculateNormScore('9001');
+            const score14001 = calculateNormScore('14001');
+            const score45001 = calculateNormScore('45001');
+
+            document.getElementById('badge-score-9001').innerText = `${score9001}%`;
+            document.getElementById('badge-score-14001').innerText = `${score14001}%`;
+            document.getElementById('badge-score-45001').innerText = `${score45001}%`;
+
+            let activeScores = [];
+            if(selectedIsoNorms.iso9001) activeScores.push(score9001);
+            if(selectedIsoNorms.iso14001) activeScores.push(score14001);
+            if(selectedIsoNorms.iso45001) activeScores.push(score45001);
+
+            const globalScore = activeScores.length > 0 ? Math.round(activeScores.reduce((a,b)=>a+b, 0) / activeScores.length) : 0;
+            document.getElementById('global-compliance-score').innerText = `${globalScore}%`;
+        }
+
+        function renderActionPlanTable() {
+            const tbody = document.getElementById('action-plan-table-body');
+
+            if (actionPlanList.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="8" class="p-8 text-center text-slate-400">
+                            No hay acciones registradas. Haga clic en "Sincronizar Hallazgos" o agregue acciones manualmente.
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
+            tbody.innerHTML = actionPlanList.map((act, index) => {
+                let badgeStatus = 'bg-slate-100 text-slate-700';
+                if(act.status === 'Completado') badgeStatus = 'bg-emerald-100 text-emerald-800';
+                else if(act.status === 'En Proceso') badgeStatus = 'bg-amber-100 text-amber-800';
+
+                return `
+                    <tr class="hover:bg-slate-50 transition">
+                        <td class="p-3.5 font-bold text-slate-800 text-[11px]">${act.norm}</td>
+                        <td class="p-3.5 text-slate-700 font-medium">${act.gap}</td>
+                        <td class="p-3.5 text-slate-600 bg-amber-50/30">${act.cause}</td>
+                        <td class="p-3.5 text-slate-900 font-medium">${act.mitigation}</td>
+                        <td class="p-3.5 text-slate-700">${act.owner}</td>
+                        <td class="p-3.5 text-slate-600">${act.date}</td>
+                        <td class="p-3.5 text-center">
+                            <span class="px-2.5 py-1 rounded-full text-[10px] font-bold ${badgeStatus}">${act.status}</span>
+                        </td>
+                        <td class="p-3.5 text-center">
+                            <button onclick="deleteActionPlanItem(${index})" class="text-slate-400 hover:text-rose-600 font-bold">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function autoGenerateImprovementsFromGaps() {
+            let countNew = 0;
+            ['9001', '14001', '45001'].forEach(normKey => {
+                const items = isoChecklists[normKey] || [];
+                items.forEach(item => {
+                    if (item.status === 'NO_CUMPLE' || item.status === 'PARCIAL') {
+                        const exists = actionPlanList.some(a => a.gap.includes(item.clause));
+                        if (!exists) {
+                            actionPlanList.push({
+                                id: 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2,4),
+                                norm: `ISO ${normKey}`,
+                                gap: `Desviación en ${item.clause}: ${item.req}`,
+                                cause: item.obs ? `Diagnóstico: ${item.obs}` : 'Falta de procedimiento estandarizado y controles periódicos.',
+                                mitigation: `Implementar procedimiento de control y capacitación para satisfacer requisito ${item.clause}.`,
+                                owner: 'Responsable SIG / Jefe de Área',
+                                date: '2026-12-01',
+                                status: 'Pendiente'
+                            });
+                            countNew++;
+                        }
+                    }
+                });
+            });
+
+            renderActionPlanTable();
+            alert(`Se han sincronizado e incorporado ${countNew} acciones de mejora basadas en las no conformidades del diagnóstico.`);
+        }
+
+        function openActionPlanModal() {
+            document.getElementById('action-gap').value = '';
+            document.getElementById('action-cause').value = '';
+            document.getElementById('action-mitigation').value = '';
+            document.getElementById('action-owner').value = '';
+            document.getElementById('action-date').value = '';
+            document.getElementById('modal-action-plan').classList.remove('hidden');
+        }
+
+        function closeActionPlanModal() {
+            document.getElementById('modal-action-plan').classList.add('hidden');
+        }
+
+        function saveActionPlanItem() {
+            const gap = document.getElementById('action-gap').value.trim();
+            const mitigation = document.getElementById('action-mitigation').value.trim();
+
+            if(!gap || !mitigation) {
+                alert('Ingrese la descripción del hallazgo y la acción de mitigación.');
+                return;
+            }
+
+            actionPlanList.push({
+                id: 'act_' + Date.now(),
+                norm: document.getElementById('action-norm').value,
+                gap: gap,
+                cause: document.getElementById('action-cause').value.trim() || 'No analizada',
+                mitigation: mitigation,
+                owner: document.getElementById('action-owner').value.trim() || 'Sin asignar',
+                date: document.getElementById('action-date').value || 'Por definir',
+                status: document.getElementById('action-status').value
+            });
+
+            renderActionPlanTable();
+            closeActionPlanModal();
+        }
+
+        function deleteActionPlanItem(index) {
+            if (confirm('¿Desea eliminar esta acción del plan de mejora?')) {
+                actionPlanList.splice(index, 1);
+                renderActionPlanTable();
+            }
+        }
+
+        async function runAiAnalysis(analysisType) {
+            const loading = document.getElementById('ai-loading');
+            const output = document.getElementById('ai-output-text');
+
+            loading.classList.remove('hidden');
+            output.innerText = '';
+
+            const currentProcess = processes.find(p => p.id === currentProcessId);
+
+            // Build context prompt
+            let activeNormsList = [];
+            if(selectedIsoNorms.iso9001) activeNormsList.push('ISO 9001:2015 (Calidad)');
+            if(selectedIsoNorms.iso14001) activeNormsList.push('ISO 14001:2015 (Medio Ambiente)');
+            if(selectedIsoNorms.iso45001) activeNormsList.push('ISO 45001:2018 (Seguridad y Salud en el Trabajo)');
+
+            let contextText = `SISTEMA INTEGRADO DE GESTIÓN (SIG)\nNormas seleccionadas: ${activeNormsList.join(', ')}\n\n`;
+            contextText += `PROCESO EVALUADO: ${currentProcess ? currentProcess.name : 'N/A'}\nDueño: ${currentProcess ? currentProcess.owner : 'N/A'}\nObjetivo: ${currentProcess ? currentProcess.objective : 'N/A'}\n\n`;
+            contextText += `DIAGNOSTICO LISTA DE CHEQUEO:\n`;
+
+            ['9001', '14001', '45001'].forEach(norm => {
+                if((norm === '9001' && selectedIsoNorms.iso9001) ||
+                   (norm === '14001' && selectedIsoNorms.iso14001) ||
+                   (norm === '45001' && selectedIsoNorms.iso45001)) {
+                    contextText += `--- NORMA ISO ${norm} ---\n`;
+                    isoChecklists[norm].forEach(item => {
+                        contextText += `Requisito ${item.clause}: Estado = ${item.status}. Observación: ${item.obs || 'N/A'}. Evidencia: ${item.evidence || 'N/A'}\n`;
+                    });
+                }
+            });
+
+            let systemPrompt = "Eres un auditor especialista senior en Sistemas Integrados de Gestión ISO 9001, ISO 14001 e ISO 45001. Ofrece análisis detallados, orientados a la mejora continua y mitigación de riesgos organizacionales.";
+            let userQuery = "";
+
+            if (analysisType === 'diagnostic') {
+                userQuery = `Analiza la información del sistema expuesto y genera un Informe Ejecutivo de Diagnóstico para la empresa. Evalúa las 3 normas en relación con el proceso actual y emite recomendaciones globales.\n\nContexto:\n${contextText}`;
+            } else if (analysisType === 'rootcause') {
+                userQuery = `Examina los requisitos etiquetados como PARCIAL o NO CUMPLE en el contexto proporcionado. Aplica el análisis de Causa Raíz (5 Porqués / Diagrama Ishikawa) para explicar por qué ocurren estos incumplimientos y cuál es la causa raíz fundamental.\n\nContexto:\n${contextText}`;
+            } else {
+                userQuery = `Basándote en los riesgos e incumplimientos detectados, genera un Plan Sugerido de Mitigación de Riesgos con medidas preventivas y de control operativo para evitar sanciones, accidentes o no conformidades.\n\nContexto:\n${contextText}`;
+            }
+
+            try {
+                const apiKey = ""; // Canvas handles API Key at runtime
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: userQuery }] }],
+                    systemInstruction: { parts: [{ text: systemPrompt }] }
+                };
+
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                const data = await response.json();
+                const resultText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                loading.classList.add('hidden');
+                if (resultText) {
+                    output.innerText = resultText;
+                } else {
+                    output.innerText = "No se pudo generar la respuesta. Verifique la conexión o el volumen de datos ingresado.";
+                }
+            } catch (err) {
+                loading.classList.add('hidden');
+                output.innerText = "Error en el servicio de IA: " + err.message + "\n\nSe recomienda revisar la configuración de red.";
+            }
+        }
+
+        function copyAiOutput() {
+            const text = document.getElementById('ai-output-text').innerText;
+            if(!text) return;
+            const textarea = document.createElement('textarea');
+            textarea.value = text;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('Texto copiado al portapapeles.');
+        }
+
+        // Global Initialization on Load
+        window.addEventListener('DOMContentLoaded', () => {
+            renderProcessSelector();
+            loadSelectedProcess();
+            renderMacroProcessMap();
+            renderChecklistTable();
+            updateScores();
+            renderActionPlanTable();
+            switchProcessViewMode('circular');
+        });
+    </script>
+</body>
+</html>
